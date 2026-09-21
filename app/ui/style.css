@@ -910,6 +910,18 @@ select.enterprise-text-input option { background: var(--bg-surface-solid); color
 .input-with-icon:focus-within > i { color: var(--text-secondary); }
 
 .form-hint { font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-serif); font-style: italic; }
+.key-status-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.key-status-row .form-hint { font-style: normal; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.02em; }
+.mono-inline { font-family: var(--font-mono); font-style: normal; font-size: 0.92em; color: var(--text-secondary); }
+
+/* A configuration problem that silently degrades answers gets a loud chip */
+.hint-alert { color: var(--cat-metric) !important; font-weight: 600; }
+.card-tag-pill.badge-alert {
+  color: var(--cat-metric);
+  border-color: color-mix(in srgb, var(--cat-metric) 50%, transparent);
+  background: var(--cat-metric-sheer);
+  font-weight: 600;
+}
 
 /* ==================== 07 · RESEARCH STUDIO ==================== */
 .studio-layout {

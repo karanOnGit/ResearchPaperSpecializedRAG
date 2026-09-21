@@ -4,6 +4,10 @@
 .env.*.local
 !.env.example
 
+# Runtime settings written from the UI (contains the Groq API key)
+data/.runtime_settings.json
+data/.runtime_settings.tmp
+
 # Python Virtual Environments
 .venv/
 venv/

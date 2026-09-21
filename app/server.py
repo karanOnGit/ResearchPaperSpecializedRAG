@@ -188,20 +188,80 @@ async def clear_storage():
 class SettingsUpdateRequest(BaseModel):
     groq_api_key: Optional[str] = None
     groq_model: Optional[str] = None
+    extraction_model: Optional[str] = None
     mongodb_uri: Optional[str] = None
 
-@app.get("/api/settings")
-async def get_settings():
-    """Return non-sensitive configuration state."""
-    return JSONResponse({
+
+def _settings_payload() -> Dict[str, Any]:
+    """Non-sensitive configuration state, as a plain dict.
+
+    Returned directly by GET /api/settings and embedded in the POST response,
+    so it must not be a Response object.
+    """
+    return {
         "groq_api_key_set": bool(config.groq_api_key),
         "groq_api_key_preview": f"...{config.groq_api_key[-4:]}" if len(config.groq_api_key) > 4 else "Not Set",
+        "groq_api_key_source": config.groq_api_key_source,
         "groq_model": config.groq_model,
         "extraction_model": config.extraction_model,
         "mongodb_uri": config.mongodb_uri if config.mongodb_uri else "Embedded Persistent Store (Active)",
         "database_name": config.database_name,
         "embedding_model": config.embedding_model,
-    })
+    }
+
+
+def _fetch_groq_models() -> Dict[str, Any]:
+    """Ask Groq which models the configured key can actually use."""
+    if not config.groq_api_key:
+        return {"models": [], "available": False, "status": "no_key", "reason": "No Groq API key configured."}
+
+    try:
+        import httpx
+        res = httpx.get(
+            "https://api.groq.com/openai/v1/models",
+            headers={"Authorization": f"Bearer {config.groq_api_key}"},
+            timeout=12.0,
+        )
+        if res.status_code == 401:
+            return {
+                "models": [],
+                "available": False,
+                "status": "rejected",
+                "reason": "Groq rejected this API key — it may have been revoked or rotated.",
+            }
+        res.raise_for_status()
+        data = res.json().get("data", [])
+        # Groq lists speech and classifier models alongside chat models; only
+        # chat-capable ids can serve extraction or RAG synthesis.
+        NON_CHAT = ("whisper", "tts", "orpheus", "prompt-guard", "embed", "playai")
+        models = sorted(
+            (
+                {
+                    "id": m.get("id"),
+                    "owned_by": m.get("owned_by", ""),
+                    "context_window": m.get("context_window"),
+                }
+                for m in data
+                if m.get("id")
+                and m.get("active", True)
+                and not any(tag in m["id"].lower() for tag in NON_CHAT)
+            ),
+            key=lambda m: m["id"],
+        )
+        return {"models": models, "available": True, "status": "ok", "reason": ""}
+    except Exception as e:
+        return {"models": [], "available": False, "status": "unreachable", "reason": f"Could not reach Groq: {e}"}
+
+
+@app.get("/api/settings")
+async def get_settings():
+    """Return non-sensitive configuration state."""
+    return JSONResponse(_settings_payload())
+
+@app.get("/api/settings/models")
+async def list_groq_models():
+    """List the Groq models available to the configured API key."""
+    return JSONResponse(_fetch_groq_models())
 
 @app.post("/api/settings")
 async def update_settings(req: SettingsUpdateRequest):
@@ -209,11 +269,46 @@ async def update_settings(req: SettingsUpdateRequest):
     updates = {}
     if req.groq_api_key is not None:
         updates["groq_api_key"] = req.groq_api_key.strip()
-    if req.groq_model is not None:
+    if req.groq_model is not None and req.groq_model.strip():
         updates["groq_model"] = req.groq_model.strip()
+    if req.extraction_model is not None and req.extraction_model.strip():
+        updates["extraction_model"] = req.extraction_model.strip()
     if req.mongodb_uri is not None:
         updates["mongodb_uri"] = req.mongodb_uri.strip()
 
-    config.update_settings(**updates)
+    if not updates:
+        return JSONResponse({"status": "unchanged", "settings": _settings_payload()})
+
+    # Reject unknown model ids up front, so a bad selection surfaces here
+    # rather than as a failed query later.
+    requested = [updates[k] for k in ("groq_model", "extraction_model") if k in updates]
+    if requested:
+        key_for_check = updates.get("groq_api_key", config.groq_api_key)
+        if key_for_check:
+            previous_key = config.groq_api_key
+            config.groq_api_key = key_for_check
+            catalog = _fetch_groq_models()
+            config.groq_api_key = previous_key
+            if catalog["available"]:
+                known = {m["id"] for m in catalog["models"]}
+                unknown = [m for m in requested if m not in known]
+                if unknown:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Unknown Groq model: {', '.join(unknown)}. Pick one of the models your key can access.",
+                    )
+
+    try:
+        config.update_settings(**updates)
+        engine.refresh_clients()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not apply settings: {e}")
+
+    return JSONResponse({"status": "updated", "settings": _settings_payload()})
+
+@app.delete("/api/settings/groq-key")
+async def delete_groq_key():
+    """Forget the stored Groq API key."""
+    config.clear_groq_api_key()
     engine.refresh_clients()
-    return JSONResponse({"status": "updated", "settings": await get_settings()})
+    return JSONResponse({"status": "cleared", "settings": _settings_payload()})

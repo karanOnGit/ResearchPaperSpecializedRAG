@@ -260,7 +260,9 @@ async function refreshTelemetry() {
     }
 
     const badge = document.getElementById('activeModelBadge');
-    if (badge && data.groq_model) badge.textContent = `Groq · ${data.groq_model}`;
+    if (badge && data.groq_model && !badge.classList.contains('badge-alert')) {
+      badge.textContent = `Groq · ${data.groq_model}`;
+    }
   } catch (err) {
     console.warn('Telemetry update failed', err);
   }
@@ -1189,6 +1191,115 @@ async function loadStorageData(col) {
 }
 
 /* ==================== Settings ==================== */
+/* The Groq key is supplied here, never baked into the repo. The model lists
+   are fetched from Groq with that key, so you can only pick a model your
+   account can actually serve. */
+let modelCatalog = { models: [], available: false, reason: '' };
+
+function fillModelSelect(selectEl, current, placeholder) {
+  if (!selectEl) return;
+  selectEl.innerHTML = '';
+
+  if (!modelCatalog.available || modelCatalog.models.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = current || '';
+    opt.textContent = current || placeholder;
+    selectEl.appendChild(opt);
+    selectEl.disabled = true;
+    return;
+  }
+
+  selectEl.disabled = false;
+  const known = modelCatalog.models.some(m => m.id === current);
+  if (current && !known) {
+    // Keep an unavailable saved model visible so the mismatch is obvious
+    const opt = document.createElement('option');
+    opt.value = current;
+    opt.textContent = `${current} — unavailable to this key`;
+    selectEl.appendChild(opt);
+  }
+  modelCatalog.models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    const ctx = m.context_window ? ` · ${Math.round(m.context_window / 1024)}k ctx` : '';
+    opt.textContent = `${m.id}${ctx}`;
+    selectEl.appendChild(opt);
+  });
+  selectEl.value = current || modelCatalog.models[0].id;
+}
+
+async function loadModelCatalog(currentSynthesis, currentExtraction) {
+  const hint = document.getElementById('modelCatalogHint');
+  if (hint) hint.textContent = 'Loading models from Groq…';
+
+  try {
+    const res = await fetch('/api/settings/models');
+    modelCatalog = await res.json();
+  } catch (err) {
+    modelCatalog = { models: [], available: false, reason: err.message };
+  }
+
+  fillModelSelect(document.getElementById('groqModelSelect'), currentSynthesis, 'Add an API key to load models');
+  fillModelSelect(document.getElementById('extractionModelSelect'), currentExtraction, 'Add an API key to load models');
+
+  if (hint) {
+    hint.textContent = modelCatalog.available
+      ? `${modelCatalog.models.length} chat models available to this key.`
+      : modelCatalog.reason || 'Model list unavailable.';
+  }
+}
+
+function describeKeyState(data, catalogStatus) {
+  const hint = document.getElementById('apiKeyStatusHint');
+  const removeBtn = document.getElementById('removeGroqKeyBtn');
+  if (hint) {
+    const where = {
+      stored: 'saved on this machine',
+      environment: 'from the environment',
+      session: 'this session only'
+    }[data.groq_api_key_source];
+
+    if (!data.groq_api_key_set) {
+      hint.textContent = 'No key set — extraction and synthesis are disabled';
+      hint.classList.add('hint-alert');
+    } else if (catalogStatus === 'rejected') {
+      hint.textContent = `Rejected by Groq · ${data.groq_api_key_preview} — enter a current key`;
+      hint.classList.add('hint-alert');
+    } else {
+      hint.textContent = `Active · ${data.groq_api_key_preview} · ${where || 'runtime'}`;
+      hint.classList.remove('hint-alert');
+    }
+  }
+  if (removeBtn) removeBtn.hidden = data.groq_api_key_source !== 'stored';
+}
+
+async function loadSettingsIntoModal() {
+  try {
+    const res = await fetch('/api/settings');
+    if (!res.ok) return null;
+    const data = await res.json();
+
+    const uriInput = document.getElementById('mongoUriInput');
+    if (uriInput) uriInput.value = (data.mongodb_uri && data.mongodb_uri.startsWith('mongodb')) ? data.mongodb_uri : '';
+
+    describeKeyState(data, null);
+    await loadModelCatalog(data.groq_model, data.extraction_model);
+    describeKeyState(data, modelCatalog.status);
+    return data;
+  } catch (err) {
+    console.warn('Failed to load settings', err);
+    return null;
+  }
+}
+
+function markKeyProblem(label) {
+  const badge = document.getElementById('activeModelBadge');
+  if (!badge) return;
+  badge.classList.add('badge-alert');
+  badge.textContent = label;
+  badge.title = 'Open Engine Configuration to fix the Groq API key';
+}
+
 function initSettingsModal() {
   const modal = document.getElementById('settingsModal');
   const openBtn = document.getElementById('openSettingsBtn');
@@ -1200,26 +1311,8 @@ function initSettingsModal() {
 
   const openModal = async () => {
     modal.classList.add('open');
-    try {
-      const res = await fetch('/api/settings');
-      if (!res.ok) return;
-      const data = await res.json();
-      const modelSel = document.getElementById('groqModelSelect');
-      const uriInput = document.getElementById('mongoUriInput');
-      const hint = document.getElementById('apiKeyStatusHint');
-
-      if (modelSel && data.groq_model) modelSel.value = data.groq_model;
-      if (uriInput) uriInput.value = (data.mongodb_uri && data.mongodb_uri.startsWith('mongodb')) ? data.mongodb_uri : '';
-      if (hint) {
-        hint.textContent = data.groq_api_key_set
-          ? `Active key: ${data.groq_api_key_preview}`
-          : 'Using the environment default key';
-      }
-    } catch (err) {
-      console.warn('Failed to load settings', err);
-    }
+    await loadSettingsIntoModal();
   };
-
   const closeModal = () => modal.classList.remove('open');
 
   openBtn?.addEventListener('click', openModal);
@@ -1227,14 +1320,45 @@ function initSettingsModal() {
   cancelBtn?.addEventListener('click', closeModal);
   modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
+  // Re-read the catalog as soon as a key is pasted in
+  document.getElementById('groqApiKeyInput')?.addEventListener('change', async (e) => {
+    const key = e.target.value.trim();
+    if (!key) return;
+    const hint = document.getElementById('modelCatalogHint');
+    if (hint) hint.textContent = 'Save the key to load its models.';
+  });
+
+  document.getElementById('removeGroqKeyBtn')?.addEventListener('click', async () => {
+    const ok = await confirmDialog(
+      'The stored Groq API key will be deleted from this machine. Extraction and synthesis stop working until you enter a new one.',
+      { title: 'Remove the API key?', confirmLabel: 'Remove key' }
+    );
+    if (!ok) return;
+    try {
+      const res = await fetch('/api/settings/groq-key', { method: 'DELETE' });
+      if (res.ok) {
+        toast('API key removed', 'Enter a new key to resume extraction and synthesis.', 'success');
+        await loadSettingsIntoModal();
+        refreshTelemetry();
+      } else {
+        toast('Could not remove the key', `Server responded ${res.status}`, 'error');
+      }
+    } catch (err) {
+      toast('Could not remove the key', err.message, 'error');
+    }
+  });
+
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const saveBtn = document.getElementById('saveSettingsBtn');
     const groqKey = document.getElementById('groqApiKeyInput')?.value.trim();
     const model = document.getElementById('groqModelSelect')?.value;
+    const extractionModel = document.getElementById('extractionModelSelect')?.value;
     const mongoUri = document.getElementById('mongoUriInput')?.value.trim();
 
-    const payload = { groq_model: model, mongodb_uri: mongoUri || '' };
+    const payload = { mongodb_uri: mongoUri || '' };
+    if (model) payload.groq_model = model;
+    if (extractionModel) payload.extraction_model = extractionModel;
     if (groqKey) payload.groq_api_key = groqKey;
 
     if (saveBtn) { saveBtn.disabled = true; setBtnLabel(saveBtn, 'Saving…'); }
@@ -1245,15 +1369,21 @@ function initSettingsModal() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      const data = await res.json().catch(() => ({}));
+
       if (res.ok) {
-        toast('Settings saved', 'Engine clients were refreshed.', 'success');
         const keyInput = document.getElementById('groqApiKeyInput');
         if (keyInput) keyInput.value = '';
-        closeModal();
+        toast('Settings saved', `Synthesis model: ${data.settings?.groq_model || model}`, 'success');
+        if (groqKey) {
+          // A new key means a new catalog — reload rather than close blind
+          await loadSettingsIntoModal();
+        } else {
+          closeModal();
+        }
         refreshTelemetry();
       } else {
-        const errData = await res.json();
-        toast('Could not save settings', errData.detail || 'Unknown error', 'error');
+        toast('Could not save settings', data.detail || `Server responded ${res.status}`, 'error');
       }
     } catch (err) {
       toast('Could not save settings', err.message, 'error');
@@ -1261,6 +1391,30 @@ function initSettingsModal() {
       if (saveBtn) { saveBtn.disabled = false; setBtnLabel(saveBtn, 'Save settings'); }
     }
   });
+
+  // Startup check: no key, or a key Groq refuses, means answers quietly fall
+  // back to a non-LLM heuristic — so say so up front.
+  (async () => {
+    try {
+      const data = await (await fetch('/api/settings')).json();
+      if (!data.groq_api_key_set) {
+        toast('Groq API key required', 'Add your key in Engine Configuration to enable extraction and synthesis.', 'error');
+        openModal();
+        return;
+      }
+      const catalog = await (await fetch('/api/settings/models')).json();
+      if (catalog.status === 'rejected') {
+        markKeyProblem('Key rejected');
+        toast('Groq rejected the stored API key', 'Answers will fall back to non-LLM synthesis until you enter a current key.', 'error');
+        openModal();
+      } else if (catalog.status === 'unreachable') {
+        markKeyProblem('Groq unreachable');
+        toast('Could not reach Groq', catalog.reason || 'Model list unavailable.', 'error');
+      }
+    } catch (err) {
+      console.warn('Settings preflight failed', err);
+    }
+  })();
 }
 
 /* ==================== Utilities ==================== */

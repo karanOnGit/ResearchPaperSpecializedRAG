@@ -597,18 +597,28 @@
           <i class="ph ph-key" aria-hidden="true"></i>
           <input type="password" id="groqApiKeyInput" class="enterprise-text-input" placeholder="gsk_…" autocomplete="off">
         </div>
-        <span class="form-hint" id="apiKeyStatusHint">Status: checking…</span>
+        <div class="key-status-row">
+          <span class="form-hint" id="apiKeyStatusHint">Checking…</span>
+          <button type="button" class="btn-subtle-action btn-danger-action" id="removeGroqKeyBtn" hidden>
+            <i class="ph ph-trash" aria-hidden="true"></i><span>Remove key</span>
+          </button>
+        </div>
+        <span class="form-hint">Get one at <span class="mono-inline">console.groq.com/keys</span>. Stored on this machine only, in <span class="mono-inline">data/.runtime_settings.json</span>.</span>
       </div>
 
       <div class="enterprise-input-group">
-        <label for="groqModelSelect">Groq LLM model — RAG &amp; synthesis</label>
+        <label for="groqModelSelect">Synthesis model — grounded answers</label>
         <select id="groqModelSelect" class="enterprise-text-input">
-          <option value="qwen/qwen3.8-27b" selected>qwen/qwen3.8-27b — fast, structured JSON</option>
-          <option value="openai/gpt-oss-120b">openai/gpt-oss-120b — deep reasoning</option>
-          <option value="groq/compound-mini">groq/compound-mini — compound agent</option>
-          <option value="openai/gpt-oss-20b">openai/gpt-oss-20b</option>
-          <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
+          <option value="">Enter an API key to load models…</option>
         </select>
+      </div>
+
+      <div class="enterprise-input-group">
+        <label for="extractionModelSelect">Extraction model — OKF concepts &amp; relationships</label>
+        <select id="extractionModelSelect" class="enterprise-text-input">
+          <option value="">Enter an API key to load models…</option>
+        </select>
+        <span class="form-hint" id="modelCatalogHint">Loaded live from your Groq account.</span>
       </div>
 
       <div class="enterprise-input-group">
