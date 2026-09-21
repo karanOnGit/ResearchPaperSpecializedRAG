@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Research Knowledge Engine | RAG OKF Object Retrieval</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
   <!-- Cytoscape for interactive Knowledge Graph -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
   <!-- Marked for markdown rendering -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body class="dark-theme">
   <!-- Glow background effects -->
   <div class="glow-orb orb-1"></div>
@@ -25,7 +29,9 @@
       <div class="logo-badge">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+          </path>
         </svg>
       </div>
       <div class="header-titles">
@@ -54,7 +60,9 @@
       <button class="btn-settings-trigger" id="openSettingsBtn" title="Engine Settings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+          </path>
         </svg>
         <span>Settings</span>
       </button>
@@ -109,8 +117,11 @@
                 <div class="timestamp">Ready</div>
               </div>
               <div class="message-content">
-                <p>Welcome! I am your <strong>RAG OKF Knowledge Engine</strong> powered by LangChain Hybrid Retrieval and Groq LLM.</p>
-                <p>Ingest research papers (PDF), articles (URL), or notes (Markdown) to extract typed concepts and relationships. Then query me to receive research answers with strict citations, provenance, and related concept graphs.</p>
+                <p>Welcome! I am your <strong>RAG OKF Knowledge Engine</strong> powered by LangChain Hybrid Retrieval
+                  and Groq LLM.</p>
+                <p>Ingest research papers (PDF), articles (URL), or notes (Markdown) to extract typed concepts and
+                  relationships. Then query me to receive research answers with strict citations, provenance, and
+                  related concept graphs.</p>
                 <div class="suggested-queries">
                   <span class="pill-hint">Try sample query:</span>
                   <button class="btn-sample-query">Explain the core architecture and concept relationships</button>
@@ -123,7 +134,8 @@
           <!-- Query Input Area -->
           <div class="chat-input-wrapper">
             <form id="researchForm" class="chat-input-form">
-              <textarea id="queryInput" placeholder="Ask a research query across your ingested knowledge objects..." rows="2" required></textarea>
+              <textarea id="queryInput" placeholder="Ask a research query across your ingested knowledge objects..."
+                rows="2" required></textarea>
               <button type="submit" id="submitQueryBtn" class="btn-send">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -179,13 +191,14 @@
     <section class="tab-panel" id="tab-ingest">
       <div class="ingest-container">
         <div class="ingest-grid">
-          
+
           <!-- PDF Card (PyMuPDF) -->
           <div class="ingest-card glass-panel">
             <div class="card-icon red">📑</div>
             <h3>PDF Document Ingestion</h3>
-            <p class="card-desc">High-speed page-level text and layout extraction using <strong>PyMuPDF (fitz)</strong>.</p>
-            
+            <p class="card-desc">High-speed page-level text and layout extraction using <strong>PyMuPDF (fitz)</strong>.
+            </p>
+
             <div class="drop-zone" id="pdfDropZone">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -205,8 +218,9 @@
           <div class="ingest-card glass-panel">
             <div class="card-icon blue">🌐</div>
             <h3>Web & Article Loader</h3>
-            <p class="card-desc">Extract sanitized research content, eliminating ads and navigation using <strong>Trafilatura</strong>.</p>
-            
+            <p class="card-desc">Extract sanitized research content, eliminating ads and navigation using
+              <strong>Trafilatura</strong>.</p>
+
             <form id="urlIngestForm" class="ingest-form">
               <div class="form-group">
                 <label for="urlInput">Documentation or Paper URL:</label>
@@ -221,7 +235,7 @@
             <div class="card-icon green">📝</div>
             <h3>Markdown & TXT Loader</h3>
             <p class="card-desc">Ingest raw markdown notes or documentation with frontmatter preservation.</p>
-            
+
             <form id="textIngestForm" class="ingest-form">
               <div class="form-group">
                 <label for="textTitleInput">Document Title:</label>
@@ -229,7 +243,8 @@
               </div>
               <div class="form-group">
                 <label for="textContentInput">Markdown / Plain Text Content:</label>
-                <textarea id="textContentInput" rows="5" placeholder="# Heading\n\nPaste markdown or raw research text here..." required></textarea>
+                <textarea id="textContentInput" rows="5"
+                  placeholder="# Heading\n\nPaste markdown or raw research text here..." required></textarea>
               </div>
               <button type="submit" id="saveTextBtn" class="btn-primary">Ingest Markdown Text</button>
             </form>
@@ -246,7 +261,8 @@
             <button class="btn-secondary" id="clearLogBtn">Clear Log</button>
           </div>
           <div class="activity-log" id="ingestActivityLog">
-            <div class="log-entry info">System ready. Select a PDF, URL, or Markdown file to trigger the ingestion pipeline.</div>
+            <div class="log-entry info">System ready. Select a PDF, URL, or Markdown file to trigger the ingestion
+              pipeline.</div>
           </div>
         </div>
       </div>
@@ -281,7 +297,8 @@
             </div>
           </div>
           <div id="selectedNodeDetails" class="node-details-content">
-            <p class="empty-state">Click any node in the knowledge graph to view its typed category, definition, relationships, and source provenance.</p>
+            <p class="empty-state">Click any node in the knowledge graph to view its typed category, definition,
+              relationships, and source provenance.</p>
           </div>
         </div>
       </div>
@@ -364,10 +381,17 @@
           <div class="table-container" id="storageTableContainer">
             <table class="data-table" id="storageTable">
               <thead>
-                <tr id="tableHeadRow"><th>Title</th><th>Source Type</th><th>Chunks</th><th>Created At</th></tr>
+                <tr id="tableHeadRow">
+                  <th>Title</th>
+                  <th>Source Type</th>
+                  <th>Chunks</th>
+                  <th>Created At</th>
+                </tr>
               </thead>
               <tbody id="tableBody">
-                <tr><td colspan="4" class="empty-state">Loading MongoDB documents...</td></tr>
+                <tr>
+                  <td colspan="4" class="empty-state">Loading MongoDB documents...</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -396,7 +420,7 @@
         <div class="form-group">
           <label for="groqModelSelect">Groq LLM Model (RAG & Synthesis):</label>
           <select id="groqModelSelect">
-            <option value="qwen/qwen3.8-27b" selected>qwen/qwen3.8-27b (Recommended - High Speed & Structured)</option>
+            <option value="groq/compound" selected>groq/compound (Recommended - High Speed & Structured)</option>
             <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (Deep Reasoning 120B)</option>
             <option value="groq/compound-mini">groq/compound-mini (Compound Agent)</option>
             <option value="openai/gpt-oss-20b">openai/gpt-oss-20b</option>
@@ -420,4 +444,5 @@
 
   <script src="/static/app.js"></script>
 </body>
+
 </html>

@@ -17,8 +17,8 @@ class AppConfig(BaseModel):
 
     # LLM Settings
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
-    groq_model: str = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
-    extraction_model: str = os.getenv("EXTRACTION_MODEL", "qwen/qwen3.8-27b")
+    groq_model: str = os.getenv("GROQ_MODEL", "groq/compound")
+    extraction_model: str = os.getenv("EXTRACTION_MODEL", "groq/compound")
 
     # MongoDB Settings
     mongodb_uri: str = os.getenv("MONGODB_URI", "")

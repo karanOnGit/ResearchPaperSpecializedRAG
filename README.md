@@ -130,7 +130,7 @@ cp .env.example .env
 Edit `.env` and add your **Groq API Key**:
 ```bash
 GROQ_API_KEY=gsk_your_groq_api_key_here
-GROQ_MODEL=qwen/qwen3.8-27b
+GROQ_MODEL=groq/compound
 MONGODB_URI=  # Optional: Leave blank to use embedded persistent store
 ```
 
