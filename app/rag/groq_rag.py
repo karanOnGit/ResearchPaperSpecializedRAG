@@ -143,7 +143,7 @@ Return ONLY a valid JSON object matching this schema:
             ],
             response_format={"type": "json_object"},
             temperature=0.2,
-            max_tokens=2500,
+            max_tokens=750,
         )
 
         content = response.choices[0].message.content

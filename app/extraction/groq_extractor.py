@@ -23,14 +23,36 @@ class GroqKnowledgeExtractor:
         all_concepts: Dict[str, OKFConcept] = {}
         all_relationships: List[OKFRelationship] = []
 
-        # Process chunks (can batch or process key chunks)
-        for chunk in chunks:
-            concepts, relationships = self._extract_from_single_chunk(
-                chunk=chunk,
-                doc_id=doc_id,
-                source_title=source_title,
-                source_url_or_path=source_url_or_path,
-            )
+        # Process key representative chunks with Groq (up to 2 chunks to stay within 1000 OTPM limit)
+        # and supplement remaining chunks with heuristic extraction
+        groq_chunks_limit = 2
+        groq_chunks_processed = 0
+
+        for idx, chunk in enumerate(chunks):
+            # Use Groq for first 2 chunks or key chunks
+            if self.api_key and groq_chunks_processed < groq_chunks_limit:
+                try:
+                    concepts, relationships = self._extract_from_single_chunk(
+                        chunk=chunk,
+                        doc_id=doc_id,
+                        source_title=source_title,
+                        source_url_or_path=source_url_or_path,
+                    )
+                    groq_chunks_processed += 1
+                except Exception:
+                    concepts, relationships = self._extract_with_heuristics(
+                        chunk=chunk,
+                        doc_id=doc_id,
+                        source_title=source_title,
+                        source_url_or_path=source_url_or_path,
+                    )
+            else:
+                concepts, relationships = self._extract_with_heuristics(
+                    chunk=chunk,
+                    doc_id=doc_id,
+                    source_title=source_title,
+                    source_url_or_path=source_url_or_path,
+                )
 
             # Merge concepts
             for c in concepts:
@@ -136,7 +158,7 @@ Return ONLY valid JSON matching this schema:
             ],
             response_format={"type": "json_object"},
             temperature=0.1,
-            max_tokens=2048,
+            max_tokens=500,
         )
 
         content = response.choices[0].message.content

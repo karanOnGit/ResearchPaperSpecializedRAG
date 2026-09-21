@@ -29,12 +29,17 @@ class MongoManager:
         if self.uri:
             try:
                 import pymongo
-                self.client = pymongo.MongoClient(self.uri, serverSelectionTimeoutMS=2000)
+                import certifi
+                self.client = pymongo.MongoClient(
+                    self.uri,
+                    tlsCAFile=certifi.where(),
+                    serverSelectionTimeoutMS=5000
+                )
                 # Test connection
                 self.client.server_info()
                 self.db = self.client[self.db_name]
                 self.is_connected_to_live_mongo = True
-                print(f"[MongoManager] Connected to live MongoDB at {self.uri} (DB: {self.db_name})")
+                print(f"[MongoManager] Connected to live MongoDB at {self.uri[:35]}... (DB: {self.db_name})")
                 return
             except Exception as e:
                 print(f"[MongoManager] Could not connect to live MongoDB ({e}). Falling back to persistent store.")
