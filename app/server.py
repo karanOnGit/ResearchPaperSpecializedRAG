@@ -177,6 +177,12 @@ async def get_storage_stats():
     """Get statistics from MongoDB and Vector Store."""
     return JSONResponse(engine.get_system_stats())
 
+@app.post("/api/storage/clear")
+async def clear_storage():
+    """Clear all documents, concepts, relationships, sources, and vector chunks."""
+    result = engine.clear_all_data()
+    return JSONResponse(result)
+
 # ==================== Settings & Runtime Configuration ====================
 
 class SettingsUpdateRequest(BaseModel):

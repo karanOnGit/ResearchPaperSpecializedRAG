@@ -375,7 +375,10 @@
               <button class="store-tab" data-col="col-rels">Relationships</button>
               <button class="store-tab" data-col="col-sources">Sources</button>
             </div>
-            <button class="btn-secondary" id="refreshStorageBtn">Refresh Data</button>
+            <div style="display:flex; gap:8px;">
+              <button class="btn-secondary" id="refreshStorageBtn">Refresh Data</button>
+              <button class="btn-secondary" id="clearStorageBtn" style="color:var(--accent-rose); border-color:rgba(244, 63, 94, 0.4);">Clear All Data</button>
+            </div>
           </div>
 
           <div class="table-container" id="storageTableContainer">

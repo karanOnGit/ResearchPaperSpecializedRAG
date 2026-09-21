@@ -240,6 +240,23 @@ class ResearchKnowledgeEngine:
             "database_name": self.config.database_name,
         }
 
+    def clear_all_data(self) -> Dict[str, Any]:
+        """Purge all documents, concepts, relationships, sources, and vector chunks."""
+        self.mongo_manager.clear_all()
+        self.vector_manager.clear_all()
+        # Clean local exports and uploads
+        for f in self.config.okf_export_dir.glob("*.md"):
+            try:
+                f.unlink()
+            except Exception:
+                pass
+        for f in self.config.uploads_dir.glob("*"):
+            try:
+                f.unlink()
+            except Exception:
+                pass
+        return {"status": "cleared", "stats": self.get_system_stats()}
+
 def re_clean_filename(name: str) -> str:
     import re
     return re.sub(r'[^a-zA-Z0-9_\-]', '_', name.lower())[:40]

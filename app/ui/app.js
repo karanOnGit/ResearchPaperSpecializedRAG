@@ -691,6 +691,25 @@ function initStorageInspector() {
     loadStorageData(activeCol);
     refreshTelemetry();
   });
+
+  document.getElementById('clearStorageBtn')?.addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to remove all ingested documents, concepts, relationships, and vector chunks?')) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/storage/clear', { method: 'POST' });
+      if (res.ok) {
+        alert('All ingested data, concepts, and relationships have been purged.');
+        refreshTelemetry();
+        loadGraphData();
+        loadOkfConcepts();
+        const activeCol = document.querySelector('.store-tab.active')?.getAttribute('data-col') || 'col-docs';
+        loadStorageData(activeCol);
+      }
+    } catch (err) {
+      alert(`Error clearing storage: ${err.message}`);
+    }
+  });
 }
 
 async function loadStorageData(col) {

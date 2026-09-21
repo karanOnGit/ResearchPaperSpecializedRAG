@@ -229,3 +229,10 @@ class MongoManager:
                 "chat_history": self.db.chat_history.count_documents({}),
             }
         }
+
+    def clear_all(self):
+        """Purge all documents, concepts, relationships, sources, and chat_history."""
+        collections = ["documents", "concepts", "relationships", "sources", "chat_history"]
+        for col in collections:
+            self.db[col].delete_many({})
+            self._persist_fallback_to_disk(col)

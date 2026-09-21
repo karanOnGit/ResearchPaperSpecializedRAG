@@ -195,3 +195,23 @@ class VectorManager:
                 "total_chunks": len(getattr(self, "_memory_chunks", {})),
                 "persist_dir": self.persist_dir,
             }
+
+    def clear_all(self):
+        """Purge all chunks and vectors from vector store."""
+        if self.client and self.collection:
+            try:
+                self.client.delete_collection(self.collection_name)
+                self.collection = self.client.get_or_create_collection(
+                    name=self.collection_name,
+                    embedding_function=self.embedding_fn,
+                    metadata={"hnsw:space": "cosine"}
+                )
+            except Exception as e:
+                print(f"[VectorManager] Error resetting ChromaDB collection: {e}")
+        self._memory_chunks = {}
+        fallback_file = Path(self.persist_dir) / "memory_chunks.json"
+        if fallback_file.exists():
+            try:
+                fallback_file.unlink()
+            except Exception:
+                pass
