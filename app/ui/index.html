@@ -1,498 +1,662 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Research Knowledge Engine | Enterprise Object Retrieval RAG</title>
-  
-  <!-- Premium Academic Typography Pairings -->
+  <meta name="color-scheme" content="light dark">
+  <title>Research Knowledge Engine — Object Retrieval RAG</title>
+
+  <!-- Typography: editorial serif display, tight grotesque UI, reading serif, technical mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
-  
-  <!-- Cytoscape Graph Visualization & Marked Markdown Renderer -->
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <!-- Paper-line icon system (Phosphor): thin / regular / bold / fill / duotone weights -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/thin/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/duotone/style.css">
+
+  <!-- Graph + markdown rendering -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  
+
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <!-- Abstract Theme Background Artwork Layer -->
-  <div class="abstract-artwork-layer" aria-hidden="true">
-    <div class="grid-mesh-overlay"></div>
-    <div class="fluid-glow-orb orb-indigo"></div>
-    <div class="fluid-glow-orb orb-cyan"></div>
-    <div class="fluid-glow-orb orb-emerald"></div>
-    
-    <!-- Generative Topological Contour SVG Curve Artwork -->
-    <svg class="topological-lines-svg" viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M-100 200 C 300 100, 600 350, 1000 200 C 1250 100, 1400 300, 1600 250" stroke="rgba(99, 102, 241, 0.12)" stroke-width="2" stroke-dasharray="6 6"/>
-      <path d="M-100 350 C 250 250, 700 500, 1100 350 C 1350 250, 1500 450, 1600 400" stroke="rgba(14, 165, 233, 0.1)" stroke-width="1.5"/>
-      <path d="M-100 500 C 350 400, 750 650, 1150 500 C 1400 400, 1500 600, 1600 550" stroke="rgba(16, 185, 129, 0.08)" stroke-width="2" stroke-dasharray="8 8"/>
-      <path d="M-100 650 C 400 550, 800 800, 1200 650 C 1450 550, 1550 750, 1600 700" stroke="rgba(99, 102, 241, 0.07)" stroke-width="1"/>
-    </svg>
+
+<!-- ============================================================
+     ABSTRACT ARTWORK BACKDROP
+     Monochrome generative layers: contour fields, halftone drift,
+     engraved mesh, ink orbs and film grain.
+     ============================================================ -->
+<div class="abstract-artwork-layer" aria-hidden="true">
+  <div class="grid-mesh-overlay"></div>
+  <div class="halftone-field"></div>
+
+  <div class="fluid-glow-orb orb-indigo"></div>
+  <div class="fluid-glow-orb orb-cyan"></div>
+  <div class="fluid-glow-orb orb-emerald"></div>
+
+  <!-- Generative topographic contour artwork -->
+  <svg class="topological-lines-svg" viewBox="0 0 1440 900" fill="none" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <g class="contour-set contour-drift-a">
+      <path d="M-120 210 C 300 90, 620 360, 1010 200 C 1260 96, 1400 300, 1620 250" />
+      <path d="M-120 262 C 300 142, 620 412, 1010 252 C 1260 148, 1400 352, 1620 302" />
+      <path d="M-120 314 C 300 194, 620 464, 1010 304 C 1260 200, 1400 404, 1620 354" />
+    </g>
+    <g class="contour-set contour-drift-b" stroke-dasharray="3 9">
+      <path d="M-120 470 C 260 340, 700 640, 1120 470 C 1370 372, 1500 580, 1620 520" />
+      <path d="M-120 528 C 260 398, 700 698, 1120 528 C 1370 430, 1500 638, 1620 578" />
+    </g>
+    <g class="contour-set contour-drift-c">
+      <path d="M-120 700 C 400 580, 820 840, 1220 690 C 1460 600, 1560 790, 1620 740" />
+      <path d="M-120 762 C 400 642, 820 902, 1220 752 C 1460 662, 1560 852, 1620 802" />
+    </g>
+    <g class="ink-rings">
+      <ellipse cx="1180" cy="200" rx="230" ry="150" transform="rotate(-18 1180 200)" />
+      <ellipse cx="1180" cy="200" rx="170" ry="106" transform="rotate(-18 1180 200)" />
+      <ellipse cx="1180" cy="200" rx="110" ry="64"  transform="rotate(-18 1180 200)" />
+      <ellipse cx="1180" cy="200" rx="52"  ry="27"  transform="rotate(-18 1180 200)" />
+    </g>
+    <g class="ink-rings ink-rings-alt">
+      <ellipse cx="180" cy="720" rx="260" ry="140" transform="rotate(14 180 720)" />
+      <ellipse cx="180" cy="720" rx="190" ry="98"  transform="rotate(14 180 720)" />
+      <ellipse cx="180" cy="720" rx="120" ry="58"  transform="rotate(14 180 720)" />
+    </g>
+  </svg>
+
+  <div class="grain-overlay"></div>
+  <div class="vignette-overlay"></div>
+</div>
+
+<!-- ============================================================
+     MASTHEAD
+     ============================================================ -->
+<header class="enterprise-header">
+  <div class="brand-section">
+    <div class="brand-emblem" title="Research Knowledge Engine">
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M20 4 L34 12 V28 L20 36 L6 28 V12 Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" opacity=".55"/>
+        <path d="M20 12 L27 16 V24 L20 28 L13 24 V16 Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <circle cx="20" cy="20" r="2.6" fill="currentColor"/>
+        <path d="M20 4 V12 M34 12 L27 16 M34 28 L27 24 M20 36 V28 M6 28 L13 24 M6 12 L13 16" stroke="currentColor" stroke-width="1.1" opacity=".45"/>
+      </svg>
+    </div>
+    <div class="brand-meta">
+      <div class="brand-title-text">
+        <span class="brand-wordmark">Research Knowledge Engine</span>
+        <span class="academic-badge">OKF&nbsp;/&nbsp;RAG</span>
+      </div>
+      <div class="brand-tagline">Object Knowledge Format &amp; hybrid graph retrieval</div>
+    </div>
   </div>
 
-  <!-- Enterprise Header Navigation -->
-  <header class="enterprise-header">
-    <div class="brand-section">
-      <div class="brand-emblem" title="Research Knowledge Engine">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-          <polyline points="2 17 12 22 22 17"></polyline>
-          <polyline points="2 12 12 17 22 12"></polyline>
-        </svg>
-      </div>
-      <div class="brand-meta">
-        <div class="brand-title-text">
-          <span>RESEARCH KNOWLEDGE ENGINE</span>
-          <span class="academic-badge">RAG OAK / OKF</span>
-        </div>
-        <div class="brand-tagline">Object Knowledge Format & Hybrid Graph Retrieval System</div>
-      </div>
+  <!-- Live telemetry -->
+  <div class="telemetry-deck">
+    <div class="telemetry-chip" id="mongoTelemetryChip" title="MongoDB persistence layer">
+      <span class="live-indicator-dot live-emerald"></span>
+      <span class="chip-label">Store</span>
+      <span class="chip-data" id="mongoStatusText">Connecting…</span>
+    </div>
+    <div class="telemetry-chip" id="vectorTelemetryChip" title="ChromaDB dense vector index">
+      <span class="live-indicator-dot live-cyan"></span>
+      <span class="chip-label">Chunks</span>
+      <span class="chip-data" id="vectorCountText">0</span>
+    </div>
+    <div class="telemetry-chip" id="conceptTelemetryChip" title="Extracted typed OKF concepts">
+      <span class="live-indicator-dot live-indigo"></span>
+      <span class="chip-label">Concepts</span>
+      <span class="chip-data" id="conceptCountText">0</span>
     </div>
 
-    <!-- Live Telemetry Status Bar -->
-    <div class="telemetry-deck">
-      <div class="telemetry-chip" id="mongoTelemetryChip" title="MongoDB Persistence Layer">
-        <span class="live-indicator-dot live-emerald"></span>
-        <span class="chip-label">Database:</span>
-        <span class="chip-data" id="mongoStatusText">Connecting...</span>
-      </div>
-      <div class="telemetry-chip" id="vectorTelemetryChip" title="ChromaDB Dense Vector Embeddings">
-        <span class="live-indicator-dot live-cyan"></span>
-        <span class="chip-label">Indexed Chunks:</span>
-        <span class="chip-data" id="vectorCountText">0</span>
-      </div>
-      <div class="telemetry-chip" id="conceptTelemetryChip" title="Extracted Typed OKF Concepts">
-        <span class="live-indicator-dot live-indigo"></span>
-        <span class="chip-label">Concepts:</span>
-        <span class="chip-data" id="conceptCountText">0</span>
-      </div>
+    <button class="btn-icon-ghost" id="themeToggleBtn" title="Toggle black / white theme" aria-label="Toggle theme">
+      <i class="ph ph-moon-stars icon-theme-dark" aria-hidden="true"></i>
+      <i class="ph ph-sun icon-theme-light" aria-hidden="true"></i>
+    </button>
 
-      <button class="btn-header-action" id="openSettingsBtn" title="Engine Diagnostics & Model Config">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-        <span>Engine Config</span>
-      </button>
-    </div>
-  </header>
+    <button class="btn-header-action" id="openSettingsBtn" title="Engine diagnostics &amp; model config">
+      <i class="ph ph-sliders-horizontal" aria-hidden="true"></i>
+      <span>Engine</span>
+    </button>
+  </div>
+</header>
 
-  <!-- Workstation Navigation Tabs -->
-  <nav class="enterprise-tabs-nav" aria-label="Workstation View Navigation">
+<!-- ============================================================
+     WORKSTATION NAVIGATION
+     ============================================================ -->
+<nav class="enterprise-tabs-nav" aria-label="Workstation views">
+  <div class="tabs-rail">
     <button class="workstation-tab active" data-tab="tab-research">
-      <span class="tab-icon">🔬</span>
+      <span class="tab-index">01</span>
+      <i class="ph ph-brain tab-icon" aria-hidden="true"></i>
       <span class="tab-title">Research Studio</span>
     </button>
     <button class="workstation-tab" data-tab="tab-ingest">
-      <span class="tab-icon">📥</span>
+      <span class="tab-index">02</span>
+      <i class="ph ph-flask tab-icon" aria-hidden="true"></i>
       <span class="tab-title">Ingestion Lab</span>
     </button>
     <button class="workstation-tab" data-tab="tab-graph">
-      <span class="tab-icon">🕸️</span>
-      <span class="tab-title">Topological Knowledge Graph</span>
+      <span class="tab-index">03</span>
+      <i class="ph ph-graph tab-icon" aria-hidden="true"></i>
+      <span class="tab-title">Knowledge Graph</span>
     </button>
     <button class="workstation-tab" data-tab="tab-okf">
-      <span class="tab-icon">📄</span>
-      <span class="tab-title">OKF Layer Spec & Explorer</span>
+      <span class="tab-index">04</span>
+      <i class="ph ph-article tab-icon" aria-hidden="true"></i>
+      <span class="tab-title">OKF Explorer</span>
     </button>
     <button class="workstation-tab" data-tab="tab-storage">
-      <span class="tab-icon">🗄️</span>
-      <span class="tab-title">Enterprise Data Registry</span>
+      <span class="tab-index">05</span>
+      <i class="ph ph-hard-drives tab-icon" aria-hidden="true"></i>
+      <span class="tab-title">Data Registry</span>
     </button>
-  </nav>
+  </div>
+  <div class="nav-meta-note">
+    <kbd>⌘</kbd><kbd>1</kbd>–<kbd>5</kbd> to switch
+  </div>
+</nav>
 
-  <!-- Main Workstation Viewport -->
-  <main class="workstation-viewport">
+<!-- ============================================================
+     MAIN VIEWPORT
+     ============================================================ -->
+<main class="workstation-viewport">
 
-    <!-- ==================== TAB 1: RESEARCH STUDIO ==================== -->
-    <section class="tab-view active" id="tab-research">
-      <div class="studio-layout">
-        
-        <!-- Interactive Dialogue Chamber -->
-        <div class="chat-chamber enterprise-card">
-          <div class="card-header-bar">
-            <div class="card-header-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-indigo)" stroke-width="2.2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-              </svg>
+  <!-- ============ 01 · RESEARCH STUDIO ============ -->
+  <section class="tab-view active" id="tab-research">
+    <div class="studio-layout">
+
+      <!-- Dialogue -->
+      <div class="chat-chamber enterprise-card" data-reveal>
+        <div class="card-header-bar">
+          <div class="card-header-title">
+            <i class="ph-duotone ph-chat-teardrop-dots" aria-hidden="true"></i>
+            <div>
+              <span class="card-kicker">Synthesis</span>
               <h2>Grounded Research Dialogue</h2>
             </div>
-            <span class="card-tag-pill" id="activeModelBadge">Groq: llama-3.3-70b</span>
           </div>
-
-          <div class="chat-dialogue-feed" id="chatMessages">
-            <!-- Initial clean ready state (no dummy mock data) -->
-            <div class="speech-card assistant-speech">
-              <div class="speech-header">
-                <div class="speaker-title">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="m9 12 2 2 4-4"></path>
-                  </svg>
-                  <span>Research Knowledge Engine</span>
-                </div>
-                <span class="speech-time">System Ready</span>
-              </div>
-              <div class="speech-body academic-narrative">
-                <p>Welcome to the <strong>Research Knowledge Engine</strong>. This platform transforms unstructured scientific papers, technical URLs, and Markdown documentation into typed <strong>Open Knowledge Format (OKF)</strong> concept graphs with dual MongoDB and dense vector indexing.</p>
-                <p>Ingest your documents in the <strong>Ingestion Lab</strong> to construct your concept graph, or submit a research question below to retrieve evidence-backed answers with strict verbatim citations.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Prompt Composer Form -->
-          <div class="studio-prompt-container">
-            <form id="researchForm" class="prompt-composer-form">
-              <textarea id="queryInput" class="prompt-textarea" placeholder="Enter research query across your ingested knowledge objects..." rows="2" required></textarea>
-              <button type="submit" id="submitQueryBtn" class="btn-synthesize-submit" title="Synthesize Grounded Answer">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="22" y1="2" x2="11" y2="13"></line>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-              </button>
-            </form>
-          </div>
+          <span class="card-tag-pill" id="activeModelBadge">Groq</span>
         </div>
 
-        <!-- Evidence & Provenance Inspector Drawer -->
-        <div class="inspector-chamber enterprise-card">
-          <div class="card-header-bar">
-            <div class="card-header-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2.2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <h2>Object Inspector & Provenance</h2>
-            </div>
-          </div>
-
-          <div class="inspector-segment-bar">
-            <button class="segment-btn active" data-sub="sub-citations">Citations</button>
-            <button class="segment-btn" data-sub="sub-concepts">Related Concepts</button>
-            <button class="segment-btn" data-sub="sub-provenance">Confidence & Provenance</button>
-          </div>
-
-          <div class="inspector-scroll-area">
-            <!-- Citations Pane -->
-            <div class="inspector-pane active" id="sub-citations">
-              <div id="citationsList">
-                <div class="zero-data-state">
-                  <div class="zero-state-icon">📖</div>
-                  <div class="zero-state-heading">No Citations Yet</div>
-                  <div class="zero-state-desc">Submit a research query to inspect verified verbatim excerpts from source chunks.</div>
-                </div>
+        <div class="chat-dialogue-feed" id="chatMessages">
+          <div class="speech-card assistant-speech">
+            <div class="speech-header">
+              <div class="speaker-title">
+                <i class="ph-bold ph-cube" aria-hidden="true"></i>
+                <span>Research Knowledge Engine</span>
               </div>
+              <span class="speech-time">System ready</span>
             </div>
-
-            <!-- Related Concepts Pane -->
-            <div class="inspector-pane" id="sub-concepts">
-              <div id="relatedConceptsList">
-                <div class="zero-data-state">
-                  <div class="zero-state-icon">🏷️</div>
-                  <div class="zero-state-heading">No Concepts Retrieved</div>
-                  <div class="zero-state-desc">Retrieved OKF typed concepts and graph relationships will appear here.</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Confidence / Provenance Pane -->
-            <div class="inspector-pane" id="sub-provenance">
-              <div id="provenanceContainer">
-                <div class="zero-data-state">
-                  <div class="zero-state-icon">🛡️</div>
-                  <div class="zero-state-heading">Awaiting Inquiry</div>
-                  <div class="zero-state-desc">Quantitative grounding scores, source coverage, and provenance verification metrics will populate after synthesis.</div>
-                </div>
-              </div>
+            <div class="speech-body academic-narrative">
+              <p class="lede">Papers, URLs and notes become typed <strong>Open Knowledge Format</strong> concept graphs — indexed twice, in MongoDB and in dense vectors.</p>
+              <p>Build your graph in the <strong>Ingestion Lab</strong>, then ask a question below. Every answer returns with verbatim citations, linked concepts and a grounding score you can audit.</p>
             </div>
           </div>
         </div>
 
-      </div>
-    </section>
-
-    <!-- ==================== TAB 2: INGESTION LAB ==================== -->
-    <section class="tab-view" id="tab-ingest">
-      <div class="ingestion-lab-grid">
-        
-        <!-- PDF PyMuPDF Modality -->
-        <div class="ingestion-modality-card enterprise-card">
-          <div class="modality-icon-container pdf-icon">📄</div>
-          <h3>PDF Document Ingestion</h3>
-          <p class="modality-lead-text">Extract high-fidelity page-level text, headings, and layout structure using <strong>PyMuPDF (fitz)</strong>.</p>
-          
-          <div class="enterprise-drop-zone" id="pdfDropZone">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.8">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="12" y1="18" x2="12" y2="12"></line>
-              <line x1="9" y1="15" x2="12" y2="12"></line>
-              <line x1="15" y1="15" x2="12" y2="12"></line>
-            </svg>
-            <div class="drop-zone-caption">Drag & drop research PDF here or <span class="action-link">browse</span></div>
-            <input type="file" id="pdfFileInput" accept=".pdf" class="file-input-hidden">
+        <!-- Composer -->
+        <div class="studio-prompt-container">
+          <div class="prompt-suggestion-row" id="promptSuggestions">
+            <button type="button" class="prompt-suggestion" data-q="Summarise the core contributions across every ingested source.">
+              <i class="ph ph-sparkle" aria-hidden="true"></i> Summarise contributions
+            </button>
+            <button type="button" class="prompt-suggestion" data-q="Which mechanisms and architectures are most frequently mentioned, and how do they relate?">
+              <i class="ph ph-tree-structure" aria-hidden="true"></i> Map key mechanisms
+            </button>
+            <button type="button" class="prompt-suggestion" data-q="What evidence supports the reported metrics? Quote the sources verbatim.">
+              <i class="ph ph-quotes" aria-hidden="true"></i> Audit the evidence
+            </button>
           </div>
-          <div id="pdfSelectedName" class="file-name-selection-tag"></div>
-          <button id="uploadPdfBtn" class="btn-primary-action" disabled>Ingest PDF Document</button>
-        </div>
 
-        <!-- Web & URL Crawler Modality -->
-        <div class="ingestion-modality-card enterprise-card">
-          <div class="modality-icon-container web-icon">🌐</div>
-          <h3>Web & Article Loader</h3>
-          <p class="modality-lead-text">Extract sanitized research content, eliminating ads and navigation noise using <strong>Trafilatura</strong>.</p>
-          
-          <form id="urlIngestForm" class="enterprise-input-form" style="display:flex; flex-direction:column; flex:1;">
-            <div class="enterprise-input-group" style="flex:1;">
-              <label for="urlInput">Research URL / Documentation Endpoint:</label>
-              <input type="url" id="urlInput" class="enterprise-text-input" placeholder="https://arxiv.org/abs/... or research blog" required>
-            </div>
-            <button type="submit" id="crawlUrlBtn" class="btn-primary-action">Fetch & Ingest URL</button>
+          <form id="researchForm" class="prompt-composer-form">
+            <textarea id="queryInput" class="prompt-textarea" placeholder="Ask across your ingested knowledge objects…" rows="1" required></textarea>
+            <button type="submit" id="submitQueryBtn" class="btn-synthesize-submit" title="Synthesize grounded answer">
+              <i class="ph-bold ph-paper-plane-tilt" aria-hidden="true"></i>
+            </button>
           </form>
+          <div class="composer-hint-row">
+            <span><kbd>↵</kbd> send · <kbd>⇧</kbd><kbd>↵</kbd> newline</span>
+            <span class="hint-dot">·</span>
+            <span>Answers are constrained to retrieved evidence</span>
+          </div>
         </div>
-
-        <!-- Markdown & TXT Modality -->
-        <div class="ingestion-modality-card enterprise-card">
-          <div class="modality-icon-container txt-icon">📝</div>
-          <h3>Markdown & Notes Loader</h3>
-          <p class="modality-lead-text">Ingest markdown notes, research papers, or documentation with full frontmatter preservation.</p>
-          
-          <form id="textIngestForm" class="enterprise-input-form">
-            <div class="enterprise-input-group">
-              <label for="textTitleInput">Document Title / Topic:</label>
-              <input type="text" id="textTitleInput" class="enterprise-text-input" placeholder="e.g. Constitutional AI Research Note" required>
-            </div>
-            <div class="enterprise-input-group">
-              <label for="textContentInput">Markdown / Plain Text Content (or drag & drop .md file):</label>
-              <textarea id="textContentInput" class="enterprise-text-input" rows="5" placeholder="# Heading\n\nPaste markdown or drag a .md/.txt file here..." required></textarea>
-            </div>
-            <button type="submit" id="saveTextBtn" class="btn-primary-action">Ingest Markdown Text</button>
-          </form>
-        </div>
-
       </div>
 
-      <!-- Real-Time Pipeline Activity Console -->
-      <div class="pipeline-activity-console">
-        <div class="console-header-bar">
-          <div class="console-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
-              <polyline points="4 17 10 11 4 5"></polyline>
-              <line x1="12" y1="19" x2="20" y2="19"></line>
-            </svg>
-            <span>Live Extraction & OKF Generation Pipeline Log</span>
+      <!-- Inspector -->
+      <div class="inspector-chamber enterprise-card" data-reveal>
+        <div class="card-header-bar">
+          <div class="card-header-title">
+            <i class="ph-duotone ph-magnifying-glass" aria-hidden="true"></i>
+            <div>
+              <span class="card-kicker">Audit</span>
+              <h2>Object Inspector</h2>
+            </div>
           </div>
-          <button class="btn-subtle-action" id="clearLogBtn" style="color:#94a3b8; background:transparent; border-color:#334155;">Clear Log</button>
         </div>
-        <div class="console-stream" id="ingestActivityLog">
-          <div class="console-entry info">System initialized. Awaiting document ingestion via PDF, URL, or Markdown.</div>
+
+        <div class="inspector-segment-bar" role="tablist">
+          <button class="segment-btn active" data-sub="sub-citations"><i class="ph ph-quotes" aria-hidden="true"></i><span>Citations</span></button>
+          <button class="segment-btn" data-sub="sub-concepts"><i class="ph ph-tag" aria-hidden="true"></i><span>Concepts</span></button>
+          <button class="segment-btn" data-sub="sub-provenance"><i class="ph ph-shield-check" aria-hidden="true"></i><span>Provenance</span></button>
+        </div>
+
+        <div class="inspector-scroll-area">
+          <div class="inspector-pane active" id="sub-citations">
+            <div id="citationsList">
+              <div class="zero-data-state">
+                <div class="zero-state-icon"><i class="ph-thin ph-book-open-text" aria-hidden="true"></i></div>
+                <div class="zero-state-heading">No citations yet</div>
+                <div class="zero-state-desc">Ask a question to inspect verbatim excerpts pulled from your source chunks.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="inspector-pane" id="sub-concepts">
+            <div id="relatedConceptsList">
+              <div class="zero-data-state">
+                <div class="zero-state-icon"><i class="ph-thin ph-tag" aria-hidden="true"></i></div>
+                <div class="zero-state-heading">No concepts retrieved</div>
+                <div class="zero-state-desc">Typed OKF objects matched to your query will surface here.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="inspector-pane" id="sub-provenance">
+            <div id="provenanceContainer">
+              <div class="zero-data-state">
+                <div class="zero-state-icon"><i class="ph-thin ph-shield-check" aria-hidden="true"></i></div>
+                <div class="zero-state-heading">Awaiting inquiry</div>
+                <div class="zero-state-desc">Grounding score, source coverage and provenance metrics appear after synthesis.</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </section>
 
-    <!-- ==================== TAB 3: KNOWLEDGE GRAPH ==================== -->
-    <section class="tab-view" id="tab-graph">
-      <div class="graph-chamber-grid">
-        
-        <!-- Cytoscape Canvas Container -->
-        <div class="graph-canvas-wrapper enterprise-card">
-          <div class="graph-legend-strip">
-            <div class="legend-category-row">
-              <div class="legend-chip"><span class="legend-pill-dot dot-arch"></span>Architecture</div>
-              <div class="legend-chip"><span class="legend-pill-dot dot-mech"></span>Mechanism</div>
-              <div class="legend-chip"><span class="legend-pill-dot dot-tool"></span>Tool</div>
-              <div class="legend-chip"><span class="legend-pill-dot dot-entity"></span>Entity</div>
-              <div class="legend-chip"><span class="legend-pill-dot dot-metric"></span>Metric</div>
-            </div>
-            <div style="display:flex; gap:8px;">
-              <button id="resetGraphBtn" class="btn-subtle-action">Reset Layout</button>
-              <button id="refreshGraphBtn" class="btn-subtle-action">Refresh Graph</button>
+    </div>
+  </section>
+
+  <!-- ============ 02 · INGESTION LAB ============ -->
+  <section class="tab-view" id="tab-ingest">
+    <header class="view-heading" data-reveal>
+      <span class="view-kicker"><i class="ph ph-flask" aria-hidden="true"></i> Pipeline 02</span>
+      <h1 class="view-title">Ingestion <em>Lab</em></h1>
+      <p class="view-lead">Three modalities enter, one knowledge format leaves. Documents are extracted, cleaned, chunked, embedded and distilled into typed OKF concepts with traceable provenance.</p>
+    </header>
+
+    <div class="ingestion-lab-grid">
+
+      <div class="ingestion-modality-card enterprise-card" data-reveal>
+        <div class="modality-top-row">
+          <div class="modality-icon-container pdf-icon"><i class="ph-duotone ph-file-pdf" aria-hidden="true"></i></div>
+          <span class="modality-index">01</span>
+        </div>
+        <h3>PDF Documents</h3>
+        <p class="modality-lead-text">Page-level text, headings and layout structure extracted with <strong>PyMuPDF</strong>.</p>
+
+        <div class="enterprise-drop-zone" id="pdfDropZone" tabindex="0" role="button" aria-label="Upload a PDF">
+          <i class="ph-thin ph-cloud-arrow-up drop-zone-icon" aria-hidden="true"></i>
+          <div class="drop-zone-caption">Drop a research PDF or <span class="action-link">browse files</span></div>
+          <div class="drop-zone-sub">Single file · .pdf</div>
+          <input type="file" id="pdfFileInput" accept=".pdf" class="file-input-hidden">
+        </div>
+        <div id="pdfSelectedName" class="file-name-selection-tag"></div>
+        <button id="uploadPdfBtn" class="btn-primary-action" disabled>
+          <i class="ph-bold ph-arrow-line-up" aria-hidden="true"></i><span>Ingest PDF Document</span>
+        </button>
+      </div>
+
+      <div class="ingestion-modality-card enterprise-card" data-reveal>
+        <div class="modality-top-row">
+          <div class="modality-icon-container web-icon"><i class="ph-duotone ph-globe-hemisphere-west" aria-hidden="true"></i></div>
+          <span class="modality-index">02</span>
+        </div>
+        <h3>Web &amp; Articles</h3>
+        <p class="modality-lead-text">Sanitised article bodies with navigation and ad noise stripped by <strong>Trafilatura</strong>.</p>
+
+        <form id="urlIngestForm" class="enterprise-input-form">
+          <div class="enterprise-input-group grow">
+            <label for="urlInput">Research URL</label>
+            <div class="input-with-icon">
+              <i class="ph ph-link-simple" aria-hidden="true"></i>
+              <input type="url" id="urlInput" class="enterprise-text-input" placeholder="https://arxiv.org/abs/…" required>
             </div>
           </div>
+          <ul class="modality-tip-list">
+            <li><i class="ph ph-check" aria-hidden="true"></i> Preprint abstracts &amp; full-text pages</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> Documentation and technical blogs</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> Boilerplate, nav and ads are discarded</li>
+          </ul>
+          <button type="submit" id="crawlUrlBtn" class="btn-primary-action">
+            <i class="ph-bold ph-download-simple" aria-hidden="true"></i><span>Fetch &amp; Ingest URL</span>
+          </button>
+        </form>
+      </div>
+
+      <div class="ingestion-modality-card enterprise-card" data-reveal>
+        <div class="modality-top-row">
+          <div class="modality-icon-container txt-icon"><i class="ph-duotone ph-note-pencil" aria-hidden="true"></i></div>
+          <span class="modality-index">03</span>
+        </div>
+        <h3>Markdown &amp; Notes</h3>
+        <p class="modality-lead-text">Notes and papers ingested verbatim with frontmatter preserved.</p>
+
+        <form id="textIngestForm" class="enterprise-input-form">
+          <div class="enterprise-input-group">
+            <label for="textTitleInput">Document title</label>
+            <input type="text" id="textTitleInput" class="enterprise-text-input" placeholder="e.g. Constitutional AI research note" required>
+          </div>
+          <div class="enterprise-input-group grow">
+            <label for="textContentInput">Content <span class="label-hint">— or drop a .md / .txt file</span></label>
+            <textarea id="textContentInput" class="enterprise-text-input mono-input" rows="5" placeholder="# Heading&#10;&#10;Paste markdown here…" required></textarea>
+          </div>
+          <button type="submit" id="saveTextBtn" class="btn-primary-action">
+            <i class="ph-bold ph-plus" aria-hidden="true"></i><span>Ingest Markdown Text</span>
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- Pipeline console -->
+    <div class="pipeline-activity-console" data-reveal>
+      <div class="console-header-bar">
+        <div class="console-title">
+          <i class="ph-bold ph-terminal-window" aria-hidden="true"></i>
+          <span>Extraction &amp; OKF generation log</span>
+        </div>
+        <div class="console-header-actions">
+          <div class="pipeline-stage-strip" id="pipelineStages" aria-hidden="true">
+            <span class="pipeline-stage" data-stage="extract">Extract</span>
+            <span class="pipeline-stage" data-stage="chunk">Chunk</span>
+            <span class="pipeline-stage" data-stage="embed">Embed</span>
+            <span class="pipeline-stage" data-stage="okf">OKF</span>
+            <span class="pipeline-stage" data-stage="persist">Persist</span>
+          </div>
+          <button class="btn-subtle-action" id="clearLogBtn"><i class="ph ph-eraser" aria-hidden="true"></i><span>Clear</span></button>
+        </div>
+      </div>
+      <div class="console-stream" id="ingestActivityLog">
+        <div class="console-entry info">System initialised. Awaiting ingestion via PDF, URL or Markdown.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 · KNOWLEDGE GRAPH ============ -->
+  <section class="tab-view" id="tab-graph">
+    <div class="graph-chamber-grid">
+
+      <div class="graph-canvas-wrapper enterprise-card" data-reveal>
+        <div class="graph-legend-strip">
+          <div class="legend-category-row">
+            <span class="legend-caption">Category</span>
+            <div class="legend-chip"><span class="legend-pill-dot dot-arch"></span>Architecture</div>
+            <div class="legend-chip"><span class="legend-pill-dot dot-mech"></span>Mechanism</div>
+            <div class="legend-chip"><span class="legend-pill-dot dot-tool"></span>Tool</div>
+            <div class="legend-chip"><span class="legend-pill-dot dot-entity"></span>Entity</div>
+            <div class="legend-chip"><span class="legend-pill-dot dot-metric"></span>Metric</div>
+            <div class="legend-chip"><span class="legend-pill-dot dot-protocol"></span>Protocol</div>
+            <div class="legend-chip"><span class="legend-pill-dot dot-theory"></span>Theory</div>
+            <div class="legend-chip"><span class="legend-pill-dot dot-dataset"></span>Dataset</div>
+          </div>
+          <div class="legend-actions">
+            <button id="resetGraphBtn" class="btn-subtle-action"><i class="ph ph-arrows-out" aria-hidden="true"></i><span>Relayout</span></button>
+            <button id="refreshGraphBtn" class="btn-subtle-action"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i><span>Refresh</span></button>
+          </div>
+        </div>
+        <div class="graph-stage">
           <div id="cy" class="cytoscape-render-viewport"></div>
+          <div class="graph-empty-overlay" id="graphEmptyState">
+            <div class="zero-data-state">
+              <div class="zero-state-icon"><i class="ph-thin ph-graph" aria-hidden="true"></i></div>
+              <div class="zero-state-heading">The graph is unwritten</div>
+              <div class="zero-state-desc">Ingest a document and its concepts will appear here as a navigable topology.</div>
+            </div>
+          </div>
         </div>
+        <div class="graph-hint-bar"><i class="ph ph-hand-pointing" aria-hidden="true"></i> Drag to pan · scroll to zoom · tap a node to inspect</div>
+      </div>
 
-        <!-- Graph Node Details Drawer -->
-        <div class="graph-inspector-sidebar enterprise-card">
-          <div class="card-header-bar">
-            <div class="card-header-title">
-              <span style="font-size:1.1rem;">📌</span>
+      <div class="graph-inspector-sidebar enterprise-card" data-reveal>
+        <div class="card-header-bar">
+          <div class="card-header-title">
+            <i class="ph-duotone ph-push-pin" aria-hidden="true"></i>
+            <div>
+              <span class="card-kicker">Node</span>
               <h2 id="selectedNodeName">Concept Inspector</h2>
             </div>
           </div>
-          <div id="selectedNodeDetails" class="inspector-node-body">
-            <div class="zero-data-state">
-              <div class="zero-state-icon">🕸️</div>
-              <div class="zero-state-heading">Interactive Node Inspector</div>
-              <div class="zero-state-desc">Click any concept node in the knowledge graph to view its typed category, definition, relationships, and source provenance.</div>
-            </div>
+        </div>
+        <div id="selectedNodeDetails" class="inspector-node-body">
+          <div class="zero-data-state">
+            <div class="zero-state-icon"><i class="ph-thin ph-tree-structure" aria-hidden="true"></i></div>
+            <div class="zero-state-heading">Nothing selected</div>
+            <div class="zero-state-desc">Tap a node to read its typed category, definition, relationships and provenance.</div>
           </div>
         </div>
-
-      </div>
-    </section>
-
-    <!-- ==================== TAB 4: OKF LAYER SPEC & EXPLORER ==================== -->
-    <section class="tab-view" id="tab-okf">
-      <div class="okf-spec-grid">
-        
-        <!-- Left Concepts Menu -->
-        <div class="okf-index-panel enterprise-card">
-          <div class="card-header-bar">
-            <div class="card-header-title">
-              <span style="font-size:1.1rem;">🏷️</span>
-              <h2>Typed Concepts (OKF)</h2>
-            </div>
-          </div>
-          <div class="filter-input-wrapper">
-            <input type="text" id="filterConceptsInput" class="enterprise-text-input" placeholder="Filter extracted concepts..." style="width:100%; font-size:0.82rem; padding:8px 12px;">
-          </div>
-          <div class="okf-concept-menu" id="okfConceptsList">
-            <div class="zero-data-state">
-              <div class="zero-state-icon">📂</div>
-              <div class="zero-state-heading">No Concepts Loaded</div>
-              <div class="zero-state-desc">Ingest a research document to extract and inspect typed OKF objects.</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right Markdown + YAML Editor Sheet -->
-        <div class="okf-document-viewer enterprise-card">
-          <div class="card-header-bar">
-            <div class="card-header-title">
-              <span style="font-size:1.1rem;">📋</span>
-              <h2 id="okfPreviewTitle">Standard OKF Specification (Markdown + YAML)</h2>
-            </div>
-            <button id="copyOkfBtn" class="btn-subtle-action">Copy Markdown + YAML</button>
-          </div>
-          <div class="okf-editor-sheet">
-            <pre><code id="okfMarkdownContent"># Open Knowledge Format (OKF)
-# Select an extracted concept from the index on the left to inspect its portable Markdown + YAML frontmatter representation.</code></pre>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- ==================== TAB 5: ENTERPRISE DATA REGISTRY ==================== -->
-    <section class="tab-view" id="tab-storage">
-      <div class="data-registry-container">
-        
-        <!-- Live System Metric Counters -->
-        <div class="registry-stats-dashboard">
-          <div class="registry-metric-card enterprise-card">
-            <div class="metric-numeric-display" id="statDocs">0</div>
-            <div class="metric-label-caption">MongoDB Documents</div>
-          </div>
-          <div class="registry-metric-card enterprise-card">
-            <div class="metric-numeric-display" id="statConcepts">0</div>
-            <div class="metric-label-caption">MongoDB Concepts</div>
-          </div>
-          <div class="registry-metric-card enterprise-card">
-            <div class="metric-numeric-display" id="statRels">0</div>
-            <div class="metric-label-caption">MongoDB Relationships</div>
-          </div>
-          <div class="registry-metric-card enterprise-card">
-            <div class="metric-numeric-display" id="statSources">0</div>
-            <div class="metric-label-caption">MongoDB Sources</div>
-          </div>
-          <div class="registry-metric-card enterprise-card">
-            <div class="metric-numeric-display" id="statChunks">0</div>
-            <div class="metric-label-caption">ChromaDB Chunks</div>
-          </div>
-        </div>
-
-        <!-- Dynamic Collection Data Table -->
-        <div class="registry-table-chamber enterprise-card">
-          <div class="card-header-bar">
-            <div class="storage-tabs">
-              <button class="store-tab active" data-col="col-docs">Documents</button>
-              <button class="store-tab" data-col="col-concepts">Concepts</button>
-              <button class="store-tab" data-col="col-rels">Relationships</button>
-              <button class="store-tab" data-col="col-sources">Sources</button>
-            </div>
-            <div style="display:flex; gap:10px;">
-              <button class="btn-subtle-action" id="refreshStorageBtn">Refresh Data</button>
-              <button class="btn-subtle-action" id="clearStorageBtn" style="color:var(--accent-rose); border-color:var(--accent-rose-light); background:#fff;">Clear All Data</button>
-            </div>
-          </div>
-
-          <div class="table-wrapper-responsive" id="storageTableContainer">
-            <table class="enterprise-tabular-view" id="storageTable">
-              <thead>
-                <tr id="tableHeadRow">
-                  <th>Title</th>
-                  <th>Source Type</th>
-                  <th>Chunks</th>
-                  <th>Created At</th>
-                </tr>
-              </thead>
-              <tbody id="tableBody">
-                <tr>
-                  <td colspan="4">
-                    <div class="zero-data-state">
-                      <div class="zero-state-icon">📊</div>
-                      <div class="zero-state-heading">Registry Empty</div>
-                      <div class="zero-state-desc">No documents are currently stored in MongoDB Atlas.</div>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-  </main>
-
-  <!-- Configuration & Diagnostics Modal -->
-  <div class="enterprise-modal-scrim" id="settingsModal">
-    <div class="modal-dialog-box">
-      <div class="modal-header-section">
-        <div class="card-header-title">
-          <span style="font-size:1.1rem;">⚙️</span>
-          <h2>Engine Configuration</h2>
-        </div>
-        <button class="btn-subtle-action" id="closeSettingsBtn" style="padding:4px 10px; font-size:1.1rem;">&times;</button>
       </div>
 
-      <form id="settingsForm" class="modal-body-form">
-        <div class="enterprise-input-group">
-          <label for="groqApiKeyInput">Groq API Key:</label>
-          <input type="password" id="groqApiKeyInput" class="enterprise-text-input" placeholder="gsk_..." autocomplete="off">
-          <span class="form-hint" id="apiKeyStatusHint" style="font-size:0.75rem; color:var(--text-muted);">Status: Checking...</span>
+    </div>
+  </section>
+
+  <!-- ============ 04 · OKF EXPLORER ============ -->
+  <section class="tab-view" id="tab-okf">
+    <div class="okf-spec-grid">
+
+      <div class="okf-index-panel enterprise-card" data-reveal>
+        <div class="card-header-bar">
+          <div class="card-header-title">
+            <i class="ph-duotone ph-tag" aria-hidden="true"></i>
+            <div>
+              <span class="card-kicker">Index</span>
+              <h2>Typed Concepts</h2>
+            </div>
+          </div>
+        </div>
+        <div class="filter-input-wrapper">
+          <div class="input-with-icon">
+            <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+            <input type="text" id="filterConceptsInput" class="enterprise-text-input" placeholder="Filter concepts…">
+          </div>
+        </div>
+        <div class="okf-concept-menu" id="okfConceptsList">
+          <div class="zero-data-state">
+            <div class="zero-state-icon"><i class="ph-thin ph-folder-open" aria-hidden="true"></i></div>
+            <div class="zero-state-heading">No concepts loaded</div>
+            <div class="zero-state-desc">Ingest a document to extract typed OKF objects.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="okf-document-viewer enterprise-card" data-reveal>
+        <div class="card-header-bar">
+          <div class="card-header-title">
+            <i class="ph-duotone ph-file-code" aria-hidden="true"></i>
+            <div>
+              <span class="card-kicker">Portable record</span>
+              <h2 id="okfPreviewTitle">OKF Specification</h2>
+            </div>
+          </div>
+          <button id="copyOkfBtn" class="btn-subtle-action"><i class="ph ph-copy" aria-hidden="true"></i><span>Copy</span></button>
+        </div>
+        <div class="okf-editor-sheet">
+          <pre><code id="okfMarkdownContent"># Open Knowledge Format (OKF)
+#
+# Select a concept from the index to inspect its portable
+# Markdown + YAML frontmatter representation.</code></pre>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 05 · DATA REGISTRY ============ -->
+  <section class="tab-view" id="tab-storage">
+    <header class="view-heading" data-reveal>
+      <span class="view-kicker"><i class="ph ph-hard-drives" aria-hidden="true"></i> Registry 05</span>
+      <h1 class="view-title">Data <em>Registry</em></h1>
+      <p class="view-lead">Everything the engine persists, in one ledger — documents, typed concepts, graph edges, sources and the dense vector index.</p>
+    </header>
+
+    <div class="data-registry-container">
+
+      <div class="registry-stats-dashboard">
+        <div class="registry-metric-card enterprise-card" data-reveal>
+          <i class="ph-thin ph-files metric-icon" aria-hidden="true"></i>
+          <div class="metric-numeric-display" id="statDocs">0</div>
+          <div class="metric-label-caption">Documents</div>
+        </div>
+        <div class="registry-metric-card enterprise-card" data-reveal>
+          <i class="ph-thin ph-tag metric-icon" aria-hidden="true"></i>
+          <div class="metric-numeric-display" id="statConcepts">0</div>
+          <div class="metric-label-caption">Concepts</div>
+        </div>
+        <div class="registry-metric-card enterprise-card" data-reveal>
+          <i class="ph-thin ph-tree-structure metric-icon" aria-hidden="true"></i>
+          <div class="metric-numeric-display" id="statRels">0</div>
+          <div class="metric-label-caption">Relationships</div>
+        </div>
+        <div class="registry-metric-card enterprise-card" data-reveal>
+          <i class="ph-thin ph-archive metric-icon" aria-hidden="true"></i>
+          <div class="metric-numeric-display" id="statSources">0</div>
+          <div class="metric-label-caption">Sources</div>
+        </div>
+        <div class="registry-metric-card enterprise-card" data-reveal>
+          <i class="ph-thin ph-circles-three metric-icon" aria-hidden="true"></i>
+          <div class="metric-numeric-display" id="statChunks">0</div>
+          <div class="metric-label-caption">Vector chunks</div>
+        </div>
+      </div>
+
+      <div class="registry-table-chamber enterprise-card" data-reveal>
+        <div class="card-header-bar">
+          <div class="storage-tabs">
+            <button class="store-tab active" data-col="col-docs">Documents</button>
+            <button class="store-tab" data-col="col-concepts">Concepts</button>
+            <button class="store-tab" data-col="col-rels">Relationships</button>
+            <button class="store-tab" data-col="col-sources">Sources</button>
+          </div>
+          <div class="registry-actions">
+            <button class="btn-subtle-action" id="refreshStorageBtn"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i><span>Refresh</span></button>
+            <button class="btn-subtle-action btn-danger-action" id="clearStorageBtn"><i class="ph ph-trash" aria-hidden="true"></i><span>Purge all</span></button>
+          </div>
         </div>
 
-        <div class="enterprise-input-group">
-          <label for="groqModelSelect">Groq LLM Model (RAG & Synthesis):</label>
-          <select id="groqModelSelect" class="enterprise-text-input">
-            <option value="qwen/qwen3.8-27b" selected>qwen/qwen3.8-27b (High Speed & Structured JSON)</option>
-            <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (Deep Reasoning 120B)</option>
-            <option value="groq/compound-mini">groq/compound-mini (Compound Agent)</option>
-            <option value="openai/gpt-oss-20b">openai/gpt-oss-20b</option>
-            <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
-          </select>
+        <div class="table-wrapper-responsive" id="storageTableContainer">
+          <table class="enterprise-tabular-view" id="storageTable">
+            <thead>
+              <tr id="tableHeadRow">
+                <th>Title</th>
+                <th>Type</th>
+                <th>Chunks</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr>
+                <td colspan="4">
+                  <div class="zero-data-state">
+                    <div class="zero-state-icon"><i class="ph-thin ph-database" aria-hidden="true"></i></div>
+                    <div class="zero-state-heading">Registry empty</div>
+                    <div class="zero-state-desc">No documents are stored yet.</div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+      </div>
 
-        <div class="enterprise-input-group">
-          <label for="mongoUriInput">MongoDB URI (Atlas or Local):</label>
-          <input type="text" id="mongoUriInput" class="enterprise-text-input" placeholder="mongodb+srv://... or mongodb://localhost:27017">
-          <span class="form-hint" style="font-size:0.75rem; color:var(--text-muted);">Leave blank to use embedded persistent document store.</span>
-        </div>
+    </div>
+  </section>
 
-        <div class="modal-footer-row">
-          <button type="button" class="btn-subtle-action" id="cancelSettingsBtn">Cancel</button>
-          <button type="submit" class="btn-primary-action" id="saveSettingsBtn" style="width:auto;">Save Settings</button>
+</main>
+
+<!-- ============================================================
+     SETTINGS MODAL
+     ============================================================ -->
+<div class="enterprise-modal-scrim" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+  <div class="modal-dialog-box">
+    <div class="modal-header-section">
+      <div class="card-header-title">
+        <i class="ph-duotone ph-sliders-horizontal" aria-hidden="true"></i>
+        <div>
+          <span class="card-kicker">Runtime</span>
+          <h2 id="settingsModalTitle">Engine Configuration</h2>
         </div>
-      </form>
+      </div>
+      <button class="btn-icon-ghost" id="closeSettingsBtn" aria-label="Close"><i class="ph ph-x" aria-hidden="true"></i></button>
+    </div>
+
+    <form id="settingsForm" class="modal-body-form">
+      <div class="enterprise-input-group">
+        <label for="groqApiKeyInput">Groq API key</label>
+        <div class="input-with-icon">
+          <i class="ph ph-key" aria-hidden="true"></i>
+          <input type="password" id="groqApiKeyInput" class="enterprise-text-input" placeholder="gsk_…" autocomplete="off">
+        </div>
+        <span class="form-hint" id="apiKeyStatusHint">Status: checking…</span>
+      </div>
+
+      <div class="enterprise-input-group">
+        <label for="groqModelSelect">Groq LLM model — RAG &amp; synthesis</label>
+        <select id="groqModelSelect" class="enterprise-text-input">
+          <option value="qwen/qwen3.8-27b" selected>qwen/qwen3.8-27b — fast, structured JSON</option>
+          <option value="openai/gpt-oss-120b">openai/gpt-oss-120b — deep reasoning</option>
+          <option value="groq/compound-mini">groq/compound-mini — compound agent</option>
+          <option value="openai/gpt-oss-20b">openai/gpt-oss-20b</option>
+          <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
+        </select>
+      </div>
+
+      <div class="enterprise-input-group">
+        <label for="mongoUriInput">MongoDB URI</label>
+        <div class="input-with-icon">
+          <i class="ph ph-database" aria-hidden="true"></i>
+          <input type="text" id="mongoUriInput" class="enterprise-text-input" placeholder="mongodb+srv://… or mongodb://localhost:27017">
+        </div>
+        <span class="form-hint">Leave blank to use the embedded persistent document store.</span>
+      </div>
+
+      <div class="modal-footer-row">
+        <button type="button" class="btn-subtle-action" id="cancelSettingsBtn">Cancel</button>
+        <button type="submit" class="btn-primary-action inline-width" id="saveSettingsBtn">
+          <i class="ph-bold ph-check" aria-hidden="true"></i><span>Save settings</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================
+     CONFIRM DIALOG
+     ============================================================ -->
+<div class="enterprise-modal-scrim" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="modal-dialog-box confirm-dialog">
+    <div class="modal-header-section">
+      <div class="card-header-title">
+        <i class="ph-duotone ph-warning-circle" aria-hidden="true"></i>
+        <div>
+          <span class="card-kicker">Confirm</span>
+          <h2 id="confirmTitle">Are you sure?</h2>
+        </div>
+      </div>
+    </div>
+    <div class="modal-body-form">
+      <p class="confirm-message" id="confirmMessage"></p>
+      <div class="modal-footer-row">
+        <button type="button" class="btn-subtle-action" id="confirmCancelBtn">Cancel</button>
+        <button type="button" class="btn-primary-action inline-width btn-danger-solid" id="confirmOkBtn">Confirm</button>
+      </div>
     </div>
   </div>
+</div>
 
-  <script src="/static/app.js"></script>
+<!-- Toasts -->
+<div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
+
+<script src="/static/app.js"></script>
 </body>
 </html>

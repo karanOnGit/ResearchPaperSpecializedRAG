@@ -1,13 +1,20 @@
-// Research Knowledge Engine Client Application
-// Enterprise Light Research Design System Logic
+/* ==========================================================================
+   RESEARCH KNOWLEDGE ENGINE — CLIENT
+   Interface logic: theming, motion, toasts, dialogue, the category-coded
+   knowledge graph, OKF explorer and registry inspection.
+   ========================================================================== */
 
 let cy = null;
 let currentCitations = [];
 let currentConcepts = [];
 let currentProvenance = null;
 
+const THEME_KEY = 'rke-theme';
+
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   initTabs();
+  initShortcuts();
   initIngestion();
   initResearchChat();
   initGraph();
@@ -17,37 +24,165 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshTelemetry();
 });
 
-// ==================== Navigation Tabs ====================
+/* ==================== Theme ==================== */
+function initTheme() {
+  // White paper is the house style; the inverted theme is opt-in and remembered.
+  let stored = null;
+  try { stored = localStorage.getItem(THEME_KEY); } catch (e) { /* storage unavailable */ }
+  applyTheme(stored === 'dark' ? 'dark' : 'light');
+
+  document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* ignore */ }
+  });
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  if (cy) cy.style(buildGraphStyle());
+}
+
+function cssVar(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
+/* ==================== Typed-category encoding ==================== */
+/* One hue per OKF category — mirrored by the graph, the legend and every chip.
+   The backend may also emit Protocol / Theory / Dataset, so those are mapped
+   too; anything unrecognised falls back to neutral. */
+const CATEGORY_KEYS = ['architecture', 'mechanism', 'tool', 'entity', 'metric', 'protocol', 'theory', 'dataset'];
+
+function categoryKey(category) {
+  const k = String(category || '').trim().toLowerCase();
+  return CATEGORY_KEYS.includes(k) ? k : 'unknown';
+}
+
+function categoryClass(category) {
+  return `cat-${categoryKey(category)}`;
+}
+
+/* ==================== Toasts & confirm dialog ==================== */
+function toast(title, desc = '', variant = 'info') {
+  const stack = document.getElementById('toastStack');
+  if (!stack) return;
+
+  const icons = {
+    info: 'ph-info',
+    success: 'ph-check-circle',
+    error: 'ph-warning-circle'
+  };
+
+  const el = document.createElement('div');
+  el.className = `toast-item ${variant === 'error' ? 'toast-error' : ''}`;
+  el.innerHTML = `
+    <i class="ph-duotone ${icons[variant] || icons.info}" aria-hidden="true"></i>
+    <div class="toast-copy">
+      <div class="toast-title">${escapeHtml(title)}</div>
+      ${desc ? `<div class="toast-desc">${escapeHtml(desc)}</div>` : ''}
+    </div>
+  `;
+  stack.appendChild(el);
+
+  const dismiss = () => {
+    el.classList.add('leaving');
+    setTimeout(() => el.remove(), 260);
+  };
+  el.addEventListener('click', dismiss);
+  setTimeout(dismiss, variant === 'error' ? 7000 : 4200);
+}
+
+function confirmDialog(message, { title = 'Are you sure?', confirmLabel = 'Confirm' } = {}) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('confirmModal');
+    if (!modal) { resolve(window.confirm(message)); return; }
+
+    const titleEl = document.getElementById('confirmTitle');
+    const msgEl = document.getElementById('confirmMessage');
+    const okBtn = document.getElementById('confirmOkBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+
+    if (titleEl) titleEl.textContent = title;
+    if (msgEl) msgEl.textContent = message;
+    if (okBtn) okBtn.textContent = confirmLabel;
+
+    const close = (result) => {
+      modal.classList.remove('open');
+      okBtn?.removeEventListener('click', onOk);
+      cancelBtn?.removeEventListener('click', onCancel);
+      modal.removeEventListener('click', onScrim);
+      resolve(result);
+    };
+    const onOk = () => close(true);
+    const onCancel = () => close(false);
+    const onScrim = (e) => { if (e.target === modal) close(false); };
+
+    okBtn?.addEventListener('click', onOk);
+    cancelBtn?.addEventListener('click', onCancel);
+    modal.addEventListener('click', onScrim);
+    modal.classList.add('open');
+    okBtn?.focus();
+  });
+}
+
+/* Buttons carry an icon + label span; only swap the label. */
+function setBtnLabel(btn, text) {
+  if (!btn) return;
+  const span = btn.querySelector('span');
+  if (span) span.textContent = text;
+  else btn.textContent = text;
+}
+
+/* ==================== Navigation ==================== */
 function initTabs() {
   const tabs = document.querySelectorAll('.workstation-tab, .nav-tab');
   const panels = document.querySelectorAll('.tab-view, .tab-panel');
 
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const targetId = tab.getAttribute('data-tab');
-      tabs.forEach(t => t.classList.remove('active'));
-      panels.forEach(p => p.classList.remove('active'));
+  const activateTab = (tab) => {
+    const targetId = tab.getAttribute('data-tab');
+    const targetPanel = document.getElementById(targetId);
+    if (!targetPanel) return;
 
-      tab.classList.add('active');
-      const targetPanel = document.getElementById(targetId);
-      if (targetPanel) {
-        targetPanel.classList.add('active');
-        if (targetId === 'tab-graph' && cy) {
-          setTimeout(() => {
-            cy.resize();
-            cy.layout({ name: 'cose', animate: false }).run();
-          }, 100);
-        } else if (targetId === 'tab-storage') {
-          const activeCol = document.querySelector('.store-tab.active')?.getAttribute('data-col') || 'col-docs';
-          loadStorageData(activeCol);
-        } else if (targetId === 'tab-okf') {
-          loadOkfConcepts();
-        }
-      }
-    });
-  });
+    tabs.forEach(t => t.classList.remove('active'));
+    panels.forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    targetPanel.classList.add('active');
 
-  // Inspector segment buttons (Citations / Concepts / Provenance)
+    // Keep the view bookmarkable / shareable
+    if (location.hash !== `#${targetId}`) {
+      history.replaceState(null, '', `#${targetId}`);
+    }
+
+    if (targetId === 'tab-graph' && cy) {
+      setTimeout(() => {
+        cy.resize();
+        cy.layout({ name: 'cose', animate: false }).run();
+        cy.fit(undefined, 48);
+      }, 120);
+    } else if (targetId === 'tab-storage') {
+      const activeCol = document.querySelector('.store-tab.active')?.getAttribute('data-col') || 'col-docs';
+      loadStorageData(activeCol);
+    } else if (targetId === 'tab-okf') {
+      loadOkfConcepts();
+    }
+  };
+
+  tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab)));
+
+  // Restore the view named in the URL fragment
+  const initial = document.querySelector(`.workstation-tab[data-tab="${CSS.escape(location.hash.slice(1))}"]`);
+  if (location.hash && initial) {
+    activateTab(initial);
+    // The fragment names a view, not a scroll anchor — keep the page at the top.
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    const toTop = () => window.scrollTo(0, 0);
+    toTop();
+    requestAnimationFrame(toTop);
+    window.addEventListener('load', toTop, { once: true });
+  }
+
+  // Inspector segments (Citations / Concepts / Provenance)
   const segmentBtns = document.querySelectorAll('.segment-btn, .sub-tab');
   const segmentPanes = document.querySelectorAll('.inspector-pane, .sub-panel');
   segmentBtns.forEach(btn => {
@@ -61,69 +196,108 @@ function initTabs() {
   });
 }
 
-// ==================== Telemetry & Stats ====================
+function initShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    // Cmd/Ctrl + 1..5 switches workstation view
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && /^[1-5]$/.test(e.key)) {
+      const tabs = document.querySelectorAll('.workstation-tab');
+      const target = tabs[parseInt(e.key, 10) - 1];
+      if (target) { e.preventDefault(); target.click(); }
+      return;
+    }
+    // Escape closes any open overlay
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.enterprise-modal-scrim.open').forEach(m => {
+        if (m.id === 'confirmModal') document.getElementById('confirmCancelBtn')?.click();
+        else m.classList.remove('open');
+      });
+    }
+  });
+}
+
+/* ==================== Telemetry & stats ==================== */
+function animateCount(el, target) {
+  if (!el) return;
+  const to = Number(target) || 0;
+  const from = Number(el.textContent.replace(/[^\d]/g, '')) || 0;
+  if (from === to) { el.textContent = String(to); return; }
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = String(to);
+    return;
+  }
+
+  const duration = 620;
+  const start = performance.now();
+  const step = (now) => {
+    const p = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = String(Math.round(from + (to - from) * eased));
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 async function refreshTelemetry() {
   try {
     const res = await fetch('/api/storage/stats');
-    if (res.ok) {
-      const data = await res.json();
-      const mongo = data.mongodb || {};
-      const vec = data.vector_index || {};
+    if (!res.ok) return;
+    const data = await res.json();
+    const mongo = data.mongodb || {};
+    const vec = data.vector_index || {};
 
-      const isLive = mongo.is_live_mongo;
-      const mongoEl = document.getElementById('mongoStatusText');
-      if (mongoEl) {
-        mongoEl.textContent = isLive ? 'Live MongoDB Atlas' : 'Embedded Store';
-      }
-      const vecEl = document.getElementById('vectorCountText');
-      if (vecEl) vecEl.textContent = vec.total_chunks || 0;
-      const conceptEl = document.getElementById('conceptCountText');
-      if (conceptEl) conceptEl.textContent = mongo.counts?.concepts || 0;
+    const mongoEl = document.getElementById('mongoStatusText');
+    if (mongoEl) mongoEl.textContent = mongo.is_live_mongo ? 'MongoDB Atlas' : 'Embedded';
 
-      // Update Data Registry metric cards
-      if (mongo.counts) {
-        const dEl = document.getElementById('statDocs');
-        const cEl = document.getElementById('statConcepts');
-        const rEl = document.getElementById('statRels');
-        const sEl = document.getElementById('statSources');
-        const chEl = document.getElementById('statChunks');
+    animateCount(document.getElementById('vectorCountText'), vec.total_chunks || 0);
+    animateCount(document.getElementById('conceptCountText'), mongo.counts?.concepts || 0);
 
-        if (dEl) dEl.textContent = mongo.counts.documents || 0;
-        if (cEl) cEl.textContent = mongo.counts.concepts || 0;
-        if (rEl) rEl.textContent = mongo.counts.relationships || 0;
-        if (sEl) sEl.textContent = mongo.counts.sources || 0;
-        if (chEl) chEl.textContent = vec.total_chunks || 0;
-      }
-
-      const badge = document.getElementById('activeModelBadge');
-      if (badge && data.groq_model) {
-        badge.textContent = `Groq: ${data.groq_model}`;
-      }
+    if (mongo.counts) {
+      animateCount(document.getElementById('statDocs'), mongo.counts.documents || 0);
+      animateCount(document.getElementById('statConcepts'), mongo.counts.concepts || 0);
+      animateCount(document.getElementById('statRels'), mongo.counts.relationships || 0);
+      animateCount(document.getElementById('statSources'), mongo.counts.sources || 0);
+      animateCount(document.getElementById('statChunks'), vec.total_chunks || 0);
     }
+
+    const badge = document.getElementById('activeModelBadge');
+    if (badge && data.groq_model) badge.textContent = `Groq · ${data.groq_model}`;
   } catch (err) {
     console.warn('Telemetry update failed', err);
   }
 }
 
-// ==================== Ingestion Hub ====================
+/* ==================== Ingestion lab ==================== */
+function setPipelineState(state) {
+  const strip = document.getElementById('pipelineStages');
+  if (!strip) return;
+  const stages = strip.querySelectorAll('.pipeline-stage');
+  stages.forEach(s => s.classList.remove('running', 'done'));
+  if (state === 'running') stages.forEach(s => s.classList.add('running'));
+  else if (state === 'done') stages.forEach(s => s.classList.add('done'));
+}
+
 function initIngestion() {
-  // 1. PDF PyMuPDF Ingest
+  /* 1 · PDF (PyMuPDF) */
   const pdfDropZone = document.getElementById('pdfDropZone');
   const pdfFileInput = document.getElementById('pdfFileInput');
   const uploadPdfBtn = document.getElementById('uploadPdfBtn');
   const pdfSelectedName = document.getElementById('pdfSelectedName');
   let selectedPdfFile = null;
 
+  const selectPdf = (file) => {
+    selectedPdfFile = file;
+    if (pdfSelectedName) pdfSelectedName.textContent = `${file.name} · ${(file.size / 1024).toFixed(1)} KB`;
+    if (uploadPdfBtn) uploadPdfBtn.disabled = false;
+  };
+
   if (pdfDropZone && pdfFileInput) {
     pdfDropZone.addEventListener('click', () => pdfFileInput.click());
-    pdfFileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        selectedPdfFile = e.target.files[0];
-        pdfSelectedName.textContent = `Selected: ${selectedPdfFile.name} (${(selectedPdfFile.size / 1024).toFixed(1)} KB)`;
-        uploadPdfBtn.disabled = false;
-      }
+    pdfDropZone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pdfFileInput.click(); }
     });
-
+    pdfFileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) selectPdf(e.target.files[0]);
+    });
     pdfDropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
       pdfDropZone.classList.add('dragover');
@@ -132,99 +306,103 @@ function initIngestion() {
     pdfDropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       pdfDropZone.classList.remove('dragover');
-      if (e.dataTransfer.files.length > 0) {
-        selectedPdfFile = e.dataTransfer.files[0];
-        pdfSelectedName.textContent = `Selected: ${selectedPdfFile.name} (${(selectedPdfFile.size / 1024).toFixed(1)} KB)`;
-        uploadPdfBtn.disabled = false;
-      }
+      if (e.dataTransfer.files.length > 0) selectPdf(e.dataTransfer.files[0]);
     });
   }
 
-  if (uploadPdfBtn) {
-    uploadPdfBtn.addEventListener('click', async () => {
-      if (!selectedPdfFile) return;
-      uploadPdfBtn.disabled = true;
-      uploadPdfBtn.textContent = 'Ingesting PDF...';
-      appendLog(`Extracting PDF: "${selectedPdfFile.name}" with PyMuPDF layout parsing...`, 'info');
+  uploadPdfBtn?.addEventListener('click', async () => {
+    if (!selectedPdfFile) return;
+    uploadPdfBtn.disabled = true;
+    setBtnLabel(uploadPdfBtn, 'Ingesting PDF…');
+    setPipelineState('running');
+    appendLog(`Extracting PDF "${selectedPdfFile.name}" with PyMuPDF layout parsing…`, 'info');
 
-      const formData = new FormData();
-      formData.append('file', selectedPdfFile);
+    const formData = new FormData();
+    formData.append('file', selectedPdfFile);
 
-      try {
-        const res = await fetch('/api/ingest/pdf', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (res.ok) {
-          appendLog(`Successfully ingested PDF: "${data.title}" -> ${data.chunks_count} chunks, ${data.concepts_count} OKF concepts, ${data.relationships_count} relationships.`, 'success');
-          if (data.okf_export_path) {
-            appendLog(`OKF Export generated: ${data.okf_export_path}`, 'info');
-          }
-          selectedPdfFile = null;
-          if (pdfSelectedName) pdfSelectedName.textContent = '';
-          uploadPdfBtn.disabled = true;
-          refreshTelemetry();
-          loadGraphData();
-        } else {
-          appendLog(`PDF Ingestion Error: ${data.detail || 'Unknown error'}`, 'error');
-        }
-      } catch (err) {
-        appendLog(`PDF Ingestion Exception: ${err.message}`, 'error');
-      } finally {
-        uploadPdfBtn.disabled = false;
-        uploadPdfBtn.textContent = 'Ingest PDF Document';
+    try {
+      const res = await fetch('/api/ingest/pdf', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        appendLog(`Ingested "${data.title}" → ${data.chunks_count} chunks · ${data.concepts_count} OKF concepts · ${data.relationships_count} relationships.`, 'success');
+        if (data.okf_export_path) appendLog(`OKF export written: ${data.okf_export_path}`, 'info');
+        setPipelineState('done');
+        toast('PDF ingested', `${data.title} · ${data.concepts_count} concepts extracted`, 'success');
+        selectedPdfFile = null;
+        if (pdfSelectedName) pdfSelectedName.textContent = '';
+        if (pdfFileInput) pdfFileInput.value = '';
+        uploadPdfBtn.disabled = true;
+        refreshTelemetry();
+        loadGraphData();
+      } else {
+        setPipelineState(null);
+        appendLog(`PDF ingestion error: ${data.detail || 'Unknown error'}`, 'error');
+        toast('PDF ingestion failed', data.detail || 'Unknown error', 'error');
       }
-    });
-  }
+    } catch (err) {
+      setPipelineState(null);
+      appendLog(`PDF ingestion exception: ${err.message}`, 'error');
+      toast('PDF ingestion failed', err.message, 'error');
+    } finally {
+      uploadPdfBtn.disabled = !selectedPdfFile;
+      setBtnLabel(uploadPdfBtn, 'Ingest PDF Document');
+    }
+  });
 
-  // 2. URL Trafilatura Ingest
+  /* 2 · URL (Trafilatura) */
   const urlForm = document.getElementById('urlIngestForm');
-  if (urlForm) {
-    urlForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const urlInput = document.getElementById('urlInput');
-      const crawlBtn = document.getElementById('crawlUrlBtn');
-      const url = urlInput.value.trim();
-      if (!url) return;
+  urlForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const urlInput = document.getElementById('urlInput');
+    const crawlBtn = document.getElementById('crawlUrlBtn');
+    const url = urlInput.value.trim();
+    if (!url) return;
 
-      crawlBtn.disabled = true;
-      crawlBtn.textContent = 'Fetching & Extracting...';
-      appendLog(`Fetching URL with Trafilatura Web Loader: ${url}`, 'info');
+    crawlBtn.disabled = true;
+    setBtnLabel(crawlBtn, 'Fetching…');
+    setPipelineState('running');
+    appendLog(`Fetching URL with Trafilatura web loader: ${url}`, 'info');
 
-      try {
-        const res = await fetch('/api/ingest/url', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          appendLog(`URL Ingestion Complete: "${data.title}" -> ${data.chunks_count} chunks, ${data.concepts_count} OKF concepts, ${data.relationships_count} relationships.`, 'success');
-          urlInput.value = '';
-          refreshTelemetry();
-          loadGraphData();
-        } else {
-          appendLog(`URL Ingestion Error: ${data.detail || 'Error'}`, 'error');
-        }
-      } catch (err) {
-        appendLog(`URL Ingestion Exception: ${err.message}`, 'error');
-      } finally {
-        crawlBtn.disabled = false;
-        crawlBtn.textContent = 'Fetch & Ingest URL';
+    try {
+      const res = await fetch('/api/ingest/url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        appendLog(`Ingested "${data.title}" → ${data.chunks_count} chunks · ${data.concepts_count} OKF concepts · ${data.relationships_count} relationships.`, 'success');
+        setPipelineState('done');
+        toast('URL ingested', data.title || url, 'success');
+        urlInput.value = '';
+        refreshTelemetry();
+        loadGraphData();
+      } else {
+        setPipelineState(null);
+        appendLog(`URL ingestion error: ${data.detail || 'Error'}`, 'error');
+        toast('URL ingestion failed', data.detail || 'Error', 'error');
       }
-    });
-  }
+    } catch (err) {
+      setPipelineState(null);
+      appendLog(`URL ingestion exception: ${err.message}`, 'error');
+      toast('URL ingestion failed', err.message, 'error');
+    } finally {
+      crawlBtn.disabled = false;
+      setBtnLabel(crawlBtn, 'Fetch & Ingest URL');
+    }
+  });
 
-  // 3. Markdown / Plain Text Ingest (with drag-and-drop file reading support)
+  /* 3 · Markdown / plain text, with file drop support */
   const textForm = document.getElementById('textIngestForm');
   const titleInput = document.getElementById('textTitleInput');
   const contentInput = document.getElementById('textContentInput');
   const saveBtn = document.getElementById('saveTextBtn');
 
   if (contentInput) {
-    // Enable dragging and dropping .md or .txt files directly onto the textarea
     contentInput.addEventListener('dragover', (e) => {
       e.preventDefault();
-      contentInput.style.borderColor = 'var(--accent-indigo)';
-      contentInput.style.background = 'var(--accent-indigo-light)';
+      contentInput.style.borderColor = 'var(--border-strong)';
+      contentInput.style.background = 'var(--bg-surface-active)';
     });
     contentInput.addEventListener('dragleave', () => {
       contentInput.style.borderColor = '';
@@ -234,60 +412,63 @@ function initIngestion() {
       e.preventDefault();
       contentInput.style.borderColor = '';
       contentInput.style.background = '';
-      if (e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          contentInput.value = event.target.result;
-          if (titleInput && !titleInput.value) {
-            titleInput.value = file.name.replace(/\.[^/.]+$/, '');
-          }
-          appendLog(`Loaded local Markdown file "${file.name}" (${(file.size / 1024).toFixed(1)} KB) into editor.`, 'info');
-        };
-        reader.readAsText(file);
-      }
+      if (e.dataTransfer.files.length === 0) return;
+      const file = e.dataTransfer.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        contentInput.value = event.target.result;
+        if (titleInput && !titleInput.value) titleInput.value = file.name.replace(/\.[^/.]+$/, '');
+        appendLog(`Loaded local file "${file.name}" (${(file.size / 1024).toFixed(1)} KB) into the editor.`, 'info');
+      };
+      reader.readAsText(file);
     });
   }
 
-  if (textForm) {
-    textForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const title = titleInput.value.trim();
-      const content = contentInput.value.trim();
-      if (!content) return;
+  textForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = titleInput.value.trim();
+    const content = contentInput.value.trim();
+    if (!content) return;
 
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Processing Markdown...';
-      appendLog(`Ingesting Markdown Document: "${title}"...`, 'info');
+    saveBtn.disabled = true;
+    setBtnLabel(saveBtn, 'Processing…');
+    setPipelineState('running');
+    appendLog(`Ingesting markdown document "${title}"…`, 'info');
 
-      try {
-        const res = await fetch('/api/ingest/text', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, content }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          appendLog(`Markdown Ingested: "${data.title}" -> ${data.chunks_count} chunks, ${data.concepts_count} OKF concepts, ${data.relationships_count} relationships.`, 'success');
-          titleInput.value = '';
-          contentInput.value = '';
-          refreshTelemetry();
-          loadGraphData();
-        } else {
-          appendLog(`Markdown Ingestion Error: ${data.detail || 'Error'}`, 'error');
-        }
-      } catch (err) {
-        appendLog(`Markdown Ingestion Exception: ${err.message}`, 'error');
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Ingest Markdown Text';
+    try {
+      const res = await fetch('/api/ingest/text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        appendLog(`Ingested "${data.title}" → ${data.chunks_count} chunks · ${data.concepts_count} OKF concepts · ${data.relationships_count} relationships.`, 'success');
+        setPipelineState('done');
+        toast('Markdown ingested', `${data.title} · ${data.chunks_count} chunks`, 'success');
+        titleInput.value = '';
+        contentInput.value = '';
+        refreshTelemetry();
+        loadGraphData();
+      } else {
+        setPipelineState(null);
+        appendLog(`Markdown ingestion error: ${data.detail || 'Error'}`, 'error');
+        toast('Markdown ingestion failed', data.detail || 'Error', 'error');
       }
-    });
-  }
+    } catch (err) {
+      setPipelineState(null);
+      appendLog(`Markdown ingestion exception: ${err.message}`, 'error');
+      toast('Markdown ingestion failed', err.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+      setBtnLabel(saveBtn, 'Ingest Markdown Text');
+    }
+  });
 
   document.getElementById('clearLogBtn')?.addEventListener('click', () => {
     const log = document.getElementById('ingestActivityLog');
     if (log) log.innerHTML = '<div class="console-entry info">Pipeline log cleared. Ready.</div>';
+    setPipelineState(null);
   });
 }
 
@@ -296,13 +477,12 @@ function appendLog(message, type = 'info') {
   if (!logContainer) return;
   const entry = document.createElement('div');
   entry.className = `console-entry ${type}`;
-  const time = new Date().toLocaleTimeString();
-  entry.textContent = `[${time}] ${message}`;
+  entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
   logContainer.appendChild(entry);
   logContainer.scrollTop = logContainer.scrollHeight;
 }
 
-// ==================== Research Dialogue & Chat ====================
+/* ==================== Research dialogue ==================== */
 function initResearchChat() {
   const form = document.getElementById('researchForm');
   const queryInput = document.getElementById('queryInput');
@@ -311,18 +491,25 @@ function initResearchChat() {
 
   if (!form || !queryInput) return;
 
-  // Auto-resize query textarea as user types
-  queryInput.addEventListener('input', () => {
+  const autosize = () => {
     queryInput.style.height = 'auto';
     queryInput.style.height = Math.min(queryInput.scrollHeight, 180) + 'px';
-  });
+  };
+  queryInput.addEventListener('input', autosize);
 
-  // Enter to submit (Shift+Enter for newline)
   queryInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      form.dispatchEvent(new Event('submit'));
+      form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit'));
     }
+  });
+
+  document.querySelectorAll('.prompt-suggestion').forEach(chip => {
+    chip.addEventListener('click', () => {
+      queryInput.value = chip.getAttribute('data-q') || '';
+      autosize();
+      queryInput.focus();
+    });
   });
 
   form.addEventListener('submit', async (e) => {
@@ -330,13 +517,11 @@ function initResearchChat() {
     const query = queryInput.value.trim();
     if (!query) return;
 
-    // Append user message
     appendUserMessage(query);
     queryInput.value = '';
     queryInput.style.height = 'auto';
     if (submitBtn) submitBtn.disabled = true;
 
-    // Append loading assistant speech card
     const loadingCard = appendAssistantLoading();
 
     try {
@@ -351,24 +536,33 @@ function initResearchChat() {
         updateAssistantCard(loadingCard, data);
         updateInspector(data);
       } else {
-        loadingCard.querySelector('.speech-body').innerHTML = `
-          <p style="color:var(--accent-rose); font-family:var(--font-display); font-weight:600;">
-            Synthesis Error: ${escapeHtml(data.detail || 'Query failed')}
-          </p>
-        `;
+        renderSpeechError(loadingCard, `Synthesis error — ${data.detail || 'query failed'}`);
+        toast('Synthesis failed', data.detail || 'Query failed', 'error');
       }
     } catch (err) {
-      loadingCard.querySelector('.speech-body').innerHTML = `
-        <p style="color:var(--accent-rose); font-family:var(--font-display); font-weight:600;">
-          Connection Exception: ${escapeHtml(err.message)}
-        </p>
-      `;
+      renderSpeechError(loadingCard, `Connection exception — ${err.message}`);
+      toast('Connection error', err.message, 'error');
     } finally {
       if (submitBtn) submitBtn.disabled = false;
       if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
       refreshTelemetry();
     }
   });
+}
+
+function renderSpeechError(card, message) {
+  if (!card) return;
+  const body = card.querySelector('.speech-body');
+  const time = card.querySelector('.speech-time');
+  if (time) time.textContent = 'Failed';
+  if (body) {
+    body.innerHTML = `
+      <div class="thinking-row" style="color:var(--text-primary); font-weight:600;">
+        <i class="ph-bold ph-warning-circle" aria-hidden="true"></i>
+        <span>${escapeHtml(message)}</span>
+      </div>
+    `;
+  }
 }
 
 function appendUserMessage(text) {
@@ -380,11 +574,8 @@ function appendUserMessage(text) {
   card.innerHTML = `
     <div class="speech-header">
       <div class="speaker-title">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
-        <span>Researcher Inquiry</span>
+        <i class="ph-bold ph-user" aria-hidden="true"></i>
+        <span>Researcher</span>
       </div>
       <span class="speech-time">${new Date().toLocaleTimeString()}</span>
     </div>
@@ -405,19 +596,15 @@ function appendAssistantLoading() {
   card.innerHTML = `
     <div class="speech-header">
       <div class="speaker-title">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-          <polyline points="2 17 12 22 22 17"></polyline>
-          <polyline points="2 12 12 17 22 12"></polyline>
-        </svg>
+        <i class="ph-bold ph-cube" aria-hidden="true"></i>
         <span>Research Knowledge Engine</span>
       </div>
-      <span class="speech-time">Synthesizing...</span>
+      <span class="speech-time">Synthesising…</span>
     </div>
     <div class="speech-body academic-narrative">
-      <div style="display:flex; align-items:center; gap:12px; color:var(--text-secondary); font-family:var(--font-display); font-size:0.9rem; padding:8px 0;">
-        <span class="live-indicator-dot live-indigo" style="animation:pulseGlow 1.2s infinite alternate;"></span>
-        <span>Retrieving hybrid vectors & concept relationships... Groq LLM synthesis in progress</span>
+      <div class="thinking-row">
+        <span class="thinking-dots"><span></span><span></span><span></span></span>
+        <span>Retrieving hybrid vectors &amp; concept relationships · Groq synthesis in progress</span>
       </div>
     </div>
   `;
@@ -431,41 +618,29 @@ function updateAssistantCard(card, data) {
   const timeEl = card.querySelector('.speech-time');
   if (timeEl) timeEl.textContent = new Date().toLocaleTimeString();
 
-  // Convert answer markdown to HTML using marked.js
   let rawAnswer = data.answer || '';
-  
-  // Transform [1], [2] to interactive inline citation badges
-  rawAnswer = rawAnswer.replace(/\[(\d+)\]/g, (match, p1) => {
-    return `<span class="inline-citation-badge" data-cite="${p1}">[${p1}]</span>`;
-  });
+  rawAnswer = rawAnswer.replace(/\[(\d+)\]/g, (match, p1) =>
+    `<span class="inline-citation-badge" data-cite="${p1}">${p1}</span>`);
 
-  const parsedHtml = marked.parse(rawAnswer);
+  const parsedHtml = (typeof marked !== 'undefined') ? marked.parse(rawAnswer) : `<p>${escapeHtml(rawAnswer)}</p>`;
 
   let sourcesHtml = '';
   if (data.sources && data.sources.length > 0) {
     sourcesHtml = `
       <div class="sources-consulted-bar">
-        <strong>Sources Consulted (${data.sources.length}):</strong>
-        ${data.sources.map(s => `<span class="source-pill-token" title="${escapeHtml(s.source_path_or_url || '')}">${escapeHtml(s.title || s.id)}</span>`).join(' ')}
+        <span>Sources consulted · ${data.sources.length}</span>
+        ${data.sources.map(s => `<span class="source-pill-token" title="${escapeHtml(s.source_path_or_url || '')}">${escapeHtml(s.title || s.id)}</span>`).join('')}
       </div>
     `;
   }
 
   const bodyEl = card.querySelector('.speech-body');
-  if (bodyEl) {
-    bodyEl.innerHTML = `
-      <div class="academic-narrative">${parsedHtml}</div>
-      ${sourcesHtml}
-    `;
+  if (!bodyEl) return;
+  bodyEl.innerHTML = `<div class="academic-narrative">${parsedHtml}</div>${sourcesHtml}`;
 
-    // Attach citation chip click listeners
-    bodyEl.querySelectorAll('.inline-citation-badge').forEach(badge => {
-      badge.addEventListener('click', () => {
-        const citeId = parseInt(badge.getAttribute('data-cite'));
-        highlightCitation(citeId);
-      });
-    });
-  }
+  bodyEl.querySelectorAll('.inline-citation-badge').forEach(badge => {
+    badge.addEventListener('click', () => highlightCitation(parseInt(badge.getAttribute('data-cite'), 10)));
+  });
 }
 
 function updateInspector(data) {
@@ -473,201 +648,258 @@ function updateInspector(data) {
   currentConcepts = data.related_concepts || [];
   currentProvenance = data.confidence_provenance || null;
 
-  // 1. Render Citations Pane
+  /* Citations */
   const citationsList = document.getElementById('citationsList');
   if (citationsList) {
-    if (currentCitations.length === 0) {
-      citationsList.innerHTML = `
-        <div class="zero-data-state">
-          <div class="zero-state-icon">📖</div>
-          <div class="zero-state-heading">No Direct Citations</div>
-          <div class="zero-state-desc">No verbatim citation quotes were linked to this synthesis turn.</div>
-        </div>
-      `;
-    } else {
-      citationsList.innerHTML = currentCitations.map(c => `
+    citationsList.innerHTML = currentCitations.length === 0
+      ? emptyState('ph-book-open-text', 'No direct citations', 'No verbatim quotes were linked to this synthesis turn.')
+      : currentCitations.map(c => `
         <div class="citation-evidence-box" id="citationCard-${c.citation_id}">
           <div class="evidence-source-header">
-            <span class="evidence-cite-badge">[${c.citation_id}]</span>
+            <span class="evidence-cite-badge">${c.citation_id}</span>
             <span class="evidence-title-text" title="${escapeHtml(c.source_title)}">${escapeHtml(c.source_title || 'Document')}</span>
           </div>
-          <div class="verbatim-quote-box">"${escapeHtml(c.quote)}"</div>
-          <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono); margin-top:8px;">
-            ${c.page ? `Page ${c.page}` : 'Document chunk excerpt'}
-          </div>
+          <div class="verbatim-quote-box">${escapeHtml(c.quote)}</div>
+          <div class="citation-meta-line">${c.page ? `Page ${c.page}` : 'Document chunk excerpt'}</div>
         </div>
       `).join('');
-    }
   }
 
-  // 2. Render Related Concepts Pane
+  /* Related concepts */
   const conceptsList = document.getElementById('relatedConceptsList');
   if (conceptsList) {
-    if (currentConcepts.length === 0) {
-      conceptsList.innerHTML = `
-        <div class="zero-data-state">
-          <div class="zero-state-icon">🏷️</div>
-          <div class="zero-state-heading">No Concepts Linked</div>
-          <div class="zero-state-desc">No structured OKF concepts were matched to this inquiry.</div>
-        </div>
-      `;
-    } else {
-      conceptsList.innerHTML = currentConcepts.map(c => `
-        <div class="concept-registry-card">
+    conceptsList.innerHTML = currentConcepts.length === 0
+      ? emptyState('ph-tag', 'No concepts linked', 'No structured OKF concepts matched this inquiry.')
+      : currentConcepts.map(c => `
+        <div class="concept-registry-card ${categoryClass(c.category)}">
           <div class="concept-card-top">
             <span class="concept-label-name">${escapeHtml(c.name)}</span>
-            <span class="concept-category-tag">${escapeHtml(c.category || 'Entity')}</span>
+            <span class="concept-category-tag ${categoryClass(c.category)}">${escapeHtml(c.category || 'Entity')}</span>
           </div>
           <div class="concept-definition-body">${escapeHtml(c.definition || 'No definition recorded.')}</div>
         </div>
       `).join('');
-    }
   }
 
-  // 3. Render Confidence & Provenance Pane
+  /* Confidence & provenance */
   const provContainer = document.getElementById('provenanceContainer');
   if (provContainer) {
     if (currentProvenance) {
+      const pct = Math.round((currentProvenance.score || 0) * 100);
       provContainer.innerHTML = `
         <div class="provenance-evidence-card">
           <div class="provenance-score-gauge">
             <div>
-              <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Grounding Confidence</div>
-              <div class="score-number-display">${(currentProvenance.score * 100).toFixed(0)}%</div>
+              <div class="provenance-gauge-label">Grounding confidence</div>
+              <div class="score-number-display">${pct}<span style="font-size:1.2rem;">%</span></div>
             </div>
-            <span class="grounding-rating-pill">${escapeHtml(currentProvenance.rating)} Grounding</span>
+            <span class="grounding-rating-pill">${escapeHtml(currentProvenance.rating)}</span>
           </div>
+          <div class="score-meter-track"><div class="score-meter-fill" style="width:${pct}%"></div></div>
           <div class="provenance-narrative">${escapeHtml(currentProvenance.rationale)}</div>
-          <div class="provenance-meta-row">
-            <span>Sources Consulted</span>
-            <span>${currentProvenance.sources_consulted}</span>
-          </div>
-          <div class="provenance-meta-row">
-            <span>Concepts Linked</span>
-            <span>${currentProvenance.concepts_linked}</span>
-          </div>
+          <div class="provenance-meta-row"><span>Sources consulted</span><span>${currentProvenance.sources_consulted}</span></div>
+          <div class="provenance-meta-row"><span>Concepts linked</span><span>${currentProvenance.concepts_linked}</span></div>
         </div>
       `;
     } else {
-      provContainer.innerHTML = `
-        <div class="zero-data-state">
-          <div class="zero-state-icon">🛡️</div>
-          <div class="zero-state-heading">Provenance Ready</div>
-          <div class="zero-state-desc">Submit a research question to compute grounding metrics.</div>
-        </div>
-      `;
+      provContainer.innerHTML = emptyState('ph-shield-check', 'Provenance ready', 'Submit a research question to compute grounding metrics.');
     }
   }
 }
 
-function highlightCitation(citeId) {
-  // Switch to Citations tab in inspector
-  const citeTab = document.querySelector('.segment-btn[data-sub="sub-citations"], .sub-tab[data-sub="sub-citations"]');
-  if (citeTab) citeTab.click();
-
-  const el = document.getElementById(`citationCard-${citeId}`);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.style.borderColor = 'var(--accent-indigo)';
-    el.style.boxShadow = '0 0 16px rgba(79, 70, 229, 0.35)';
-    el.style.transform = 'translateY(-2px)';
-    setTimeout(() => {
-      el.style.borderColor = '';
-      el.style.boxShadow = '';
-      el.style.transform = '';
-    }, 2500);
-  }
+function emptyState(icon, heading, desc) {
+  return `
+    <div class="zero-data-state">
+      <div class="zero-state-icon"><i class="ph-thin ${icon}" aria-hidden="true"></i></div>
+      <div class="zero-state-heading">${escapeHtml(heading)}</div>
+      <div class="zero-state-desc">${escapeHtml(desc)}</div>
+    </div>
+  `;
 }
 
-// ==================== Cytoscape Knowledge Graph ====================
+function highlightCitation(citeId) {
+  document.querySelector('.segment-btn[data-sub="sub-citations"], .sub-tab[data-sub="sub-citations"]')?.click();
+
+  const el = document.getElementById(`citationCard-${citeId}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.style.borderColor = 'var(--border-strong)';
+  el.style.boxShadow = 'var(--shadow-glow)';
+  el.style.transform = 'translateX(4px)';
+  setTimeout(() => {
+    el.style.borderColor = '';
+    el.style.boxShadow = '';
+    el.style.transform = '';
+  }, 2400);
+}
+
+/* ==================== Knowledge graph ==================== */
+function buildGraphStyle() {
+  const ink = cssVar('--text-primary', '#000');
+  const canvas = cssVar('--bg-void', '#fff');
+  const edge = cssVar('--border-medium', 'rgba(0,0,0,.26)');
+  const hue = key => cssVar(`--cat-${key}`, '#52525b');
+  const sheer = key => cssVar(`--cat-${key}-sheer`, '#ececef');
+
+  // Category → [cytoscape shape]. Shape doubles the encoding so the graph
+  // stays readable without relying on colour alone.
+  const shapes = {
+    architecture: 'round-rectangle',
+    mechanism: 'hexagon',
+    tool: 'diamond',
+    entity: 'ellipse',
+    metric: 'triangle',
+    protocol: 'round-tag',
+    theory: 'octagon',
+    dataset: 'barrel',
+    unknown: 'ellipse'
+  };
+
+  const categoryRules = Object.keys(shapes)
+    .filter(k => k !== 'unknown')
+    .map(key => ({
+      // Category strings arrive title-cased from the extractor
+      selector: `node[category @= "${key}"]`,
+      style: {
+        'background-color': sheer(key),
+        'border-color': hue(key),
+        'shape': shapes[key]
+      }
+    }));
+
+  return [
+    {
+      selector: 'node',
+      style: {
+        'label': 'data(label)',
+        'color': ink,
+        'font-family': 'Inter Tight, sans-serif',
+        'font-size': '10px',
+        'font-weight': 600,
+        'text-valign': 'bottom',
+        'text-margin-y': 7,
+        'width': 'mapData(mention_count, 1, 10, 26, 54)',
+        'height': 'mapData(mention_count, 1, 10, 26, 54)',
+        'border-width': 2,
+        'background-color': sheer('unknown'),
+        'border-color': hue('unknown'),
+        'shape': 'ellipse',
+        'text-outline-color': canvas,
+        'text-outline-width': 2.5,
+        'transition-property': 'background-color, border-color, border-width, opacity',
+        'transition-duration': '220ms'
+      }
+    },
+    ...categoryRules,
+    {
+      selector: 'edge',
+      style: {
+        'width': 1.2,
+        'line-color': edge,
+        'target-arrow-color': edge,
+        'target-arrow-shape': 'triangle',
+        'arrow-scale': 0.8,
+        'curve-style': 'bezier',
+        'label': 'data(label)',
+        'font-family': 'JetBrains Mono, monospace',
+        'font-size': '8px',
+        'letter-spacing': 0.4,
+        'color': cssVar('--text-muted', '#5f5f66'),
+        'text-rotation': 'autorotate',
+        'text-outline-color': canvas,
+        'text-outline-width': 2
+      }
+    },
+    { selector: 'node:selected', style: { 'border-width': 4, 'border-color': ink } },
+    { selector: 'edge:selected', style: { 'line-color': ink, 'target-arrow-color': ink, 'width': 2 } },
+    { selector: 'node.dimmed', style: { 'opacity': 0.22 } },
+    { selector: 'edge.dimmed', style: { 'opacity': 0.10 } },
+    // Label density is managed by updateLabelDensity() so a dense graph stays readable
+    { selector: 'node.label-muted', style: { 'text-opacity': 0 } },
+    { selector: 'edge.label-muted', style: { 'text-opacity': 0 } },
+    { selector: '.label-forced', style: { 'text-opacity': 1, 'z-index': 99 } }
+  ];
+}
+
+/* Only label what can be read: every node when zoomed in or the graph is small,
+   otherwise the most-mentioned concepts, plus whatever is hovered or focused. */
+let labelThreshold = 2;
+
+let labelFrame = null;
+
+function updateLabelDensity() {
+  if (!cy) return;
+  if (labelFrame) cancelAnimationFrame(labelFrame);
+  labelFrame = requestAnimationFrame(() => {
+    labelFrame = null;
+    const zoom = cy.zoom() || 1;
+    const showAllNodes = zoom >= 0.75 || cy.nodes().length <= 40;
+    const showEdges = zoom >= 1.15;
+
+    // Model units scale with zoom, so divide to keep labels a constant size
+    // on screen — readable whether the graph is fitted or zoomed right in.
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    const nodeFont = clamp(11 / zoom, 9, 44);
+    const edgeFont = clamp(8.5 / zoom, 7, 32);
+    const outline = clamp(2.5 / zoom, 1.5, 9);
+
+    cy.batch(() => {
+      cy.nodes()
+        .style({ 'font-size': `${nodeFont}px`, 'text-outline-width': outline, 'text-margin-y': clamp(7 / zoom, 5, 26) })
+        .forEach(n => {
+          const keep = showAllNodes || (n.data('mention_count') || 1) >= labelThreshold || n.selected();
+          n.toggleClass('label-muted', !keep);
+        });
+      cy.edges()
+        .style({ 'font-size': `${edgeFont}px`, 'text-outline-width': clamp(2 / zoom, 1.2, 7) })
+        .toggleClass('label-muted', !showEdges);
+    });
+  });
+}
+
+function computeLabelThreshold() {
+  const counts = cy.nodes().map(n => n.data('mention_count') || 1).sort((a, b) => b - a);
+  if (counts.length === 0) { labelThreshold = 2; return; }
+  // Label roughly the top fifth by mention count
+  labelThreshold = Math.max(2, counts[Math.floor(counts.length * 0.2)] || 2);
+}
+
 function initGraph() {
   const container = document.getElementById('cy');
-  if (!container) return;
+  if (!container || typeof cytoscape === 'undefined') return;
 
   cy = cytoscape({
-    container: container,
+    container,
     elements: [],
-    style: [
-      {
-        selector: 'node',
-        style: {
-          'background-color': '#e2e8f0',
-          'label': 'data(label)',
-          'color': '#0f172a',
-          'font-family': 'Plus Jakarta Sans, sans-serif',
-          'font-size': '11px',
-          'font-weight': 600,
-          'text-valign': 'bottom',
-          'text-margin-y': 6,
-          'width': 'mapData(mention_count, 1, 10, 28, 52)',
-          'height': 'mapData(mention_count, 1, 10, 28, 52)',
-          'border-width': 2.5,
-          'border-color': '#64748b',
-          'text-outline-color': '#ffffff',
-          'text-outline-width': 2.5,
-          'transition-property': 'background-color, line-color, target-arrow-color, border-color, shadow-blur',
-          'transition-duration': '0.2s'
-        }
-      },
-      {
-        selector: 'node[category = "Architecture"]',
-        style: { 'background-color': '#e0e7ff', 'border-color': '#4338ca', 'color': '#1e1b4b' }
-      },
-      {
-        selector: 'node[category = "Mechanism"]',
-        style: { 'background-color': '#f3e8ff', 'border-color': '#7e22ce', 'color': '#3b0764' }
-      },
-      {
-        selector: 'node[category = "Tool"]',
-        style: { 'background-color': '#dcfce7', 'border-color': '#059669', 'color': '#064e3b' }
-      },
-      {
-        selector: 'node[category = "Entity"]',
-        style: { 'background-color': '#fef3c7', 'border-color': '#d97706', 'color': '#78350f' }
-      },
-      {
-        selector: 'node[category = "Metric"]',
-        style: { 'background-color': '#ffe4e6', 'border-color': '#e11d48', 'color': '#881337' }
-      },
-      {
-        selector: 'edge',
-        style: {
-          'width': 1.8,
-          'line-color': '#94a3b8',
-          'target-arrow-color': '#64748b',
-          'target-arrow-shape': 'triangle',
-          'curve-style': 'bezier',
-          'label': 'data(label)',
-          'font-family': 'JetBrains Mono, monospace',
-          'font-size': '9px',
-          'color': '#475569',
-          'text-rotation': 'autorotate',
-          'text-outline-color': '#ffffff',
-          'text-outline-width': 1.5
-        }
-      },
-      {
-        selector: ':selected',
-        style: {
-          'border-width': 4,
-          'border-color': '#4f46e5',
-          'shadow-blur': 16,
-          'shadow-color': 'rgba(79, 70, 229, 0.4)',
-          'shadow-opacity': 0.8
-        }
-      }
-    ],
-    layout: { name: 'cose', animate: false }
+    style: buildGraphStyle(),
+    layout: { name: 'cose', animate: false },
+    wheelSensitivity: 0.22,
+    minZoom: 0.2,
+    maxZoom: 3
   });
 
+  // Focus the neighbourhood of the tapped node
   cy.on('tap', 'node', (evt) => {
     const node = evt.target;
-    const data = node.data();
-    showNodeDetails(data);
+    cy.elements().addClass('dimmed');
+    node.closedNeighborhood().removeClass('dimmed').addClass('label-forced');
+    showNodeDetails(node.data());
+  });
+  cy.on('tap', (evt) => {
+    if (evt.target === cy) {
+      cy.elements().removeClass('dimmed').removeClass('label-forced');
+      updateLabelDensity();
+    }
   });
 
+  // Hovering reveals a label without changing the view
+  cy.on('mouseover', 'node', (evt) => evt.target.closedNeighborhood().addClass('label-forced'));
+  cy.on('mouseout', 'node', (evt) => evt.target.closedNeighborhood().removeClass('label-forced'));
+  cy.on('zoom', updateLabelDensity);
+
   document.getElementById('resetGraphBtn')?.addEventListener('click', () => {
-    cy.layout({ name: 'cose', animate: true, padding: 40 }).run();
+    cy.elements().removeClass('dimmed');
+    cy.layout({ name: 'cose', animate: true, animationDuration: 600, padding: 48 }).run();
   });
   document.getElementById('refreshGraphBtn')?.addEventListener('click', loadGraphData);
 
@@ -678,41 +910,39 @@ async function loadGraphData() {
   if (!cy) return;
   try {
     const res = await fetch('/api/graph');
-    if (res.ok) {
-      const data = await res.json();
-      const elements = [];
+    if (!res.ok) return;
+    const data = await res.json();
+    const elements = [];
 
-      (data.nodes || []).forEach(n => {
-        elements.push({
-          group: 'nodes',
-          data: {
-            id: n.id,
-            label: n.label,
-            category: n.category,
-            definition: n.definition,
-            mention_count: n.mention_count || 1
-          }
-        });
-      });
+    (data.nodes || []).forEach(n => elements.push({
+      group: 'nodes',
+      data: {
+        id: n.id,
+        label: n.label,
+        category: n.category,
+        definition: n.definition,
+        mention_count: n.mention_count || 1
+      }
+    }));
 
-      (data.edges || []).forEach(e => {
-        elements.push({
-          group: 'edges',
-          data: {
-            id: e.id,
-            source: e.source,
-            target: e.target,
-            label: e.label,
-            description: e.description,
-            evidence: e.evidence
-          }
-        });
-      });
+    (data.edges || []).forEach(e => elements.push({
+      group: 'edges',
+      data: {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        label: e.label,
+        description: e.description,
+        evidence: e.evidence
+      }
+    }));
 
-      cy.elements().remove();
-      cy.add(elements);
-      cy.layout({ name: 'cose', animate: true, padding: 40 }).run();
-    }
+    cy.elements().remove();
+    cy.add(elements);
+    cy.layout({ name: 'cose', animate: true, animationDuration: 700, padding: 48 }).run();
+    computeLabelThreshold();
+    updateLabelDensity();
+    document.getElementById('graphEmptyState')?.classList.toggle('hidden', cy.nodes().length > 0);
   } catch (err) {
     console.warn('Failed to load graph data', err);
   }
@@ -722,40 +952,43 @@ function showNodeDetails(nodeData) {
   const titleEl = document.getElementById('selectedNodeName');
   const detailsEl = document.getElementById('selectedNodeDetails');
   if (titleEl) titleEl.textContent = nodeData.label || 'Concept';
+  if (!detailsEl) return;
 
-  if (detailsEl) {
-    detailsEl.innerHTML = `
-      <div style="margin-bottom:14px; display:flex; align-items:center; gap:8px;">
-        <span class="concept-category-tag" style="font-size:0.8rem; padding:3px 10px;">${escapeHtml(nodeData.category || 'Entity')}</span>
-        <span style="font-size:0.8rem; color:var(--text-muted); font-family:var(--font-mono);">Mentions: ${nodeData.mention_count || 1}</span>
-      </div>
-      <div style="font-size:0.88rem; color:var(--text-secondary); line-height:1.6; margin-bottom:18px;">
-        <strong style="color:var(--text-primary); display:block; margin-bottom:4px;">Definition:</strong>
-        <p>${escapeHtml(nodeData.definition || 'No definition recorded.')}</p>
-      </div>
-      <button class="btn-primary-action" style="font-size:0.84rem; padding:10px;" onclick="inspectOkfFor('${escapeHtml(nodeData.id)}')">View OKF YAML Card</button>
-    `;
-  }
+  detailsEl.innerHTML = `
+    <div class="node-detail-row">
+      <span class="concept-category-tag ${categoryClass(nodeData.category)}">${escapeHtml(nodeData.category || 'Entity')}</span>
+      <span class="node-meta-mono">${nodeData.mention_count || 1} mentions</span>
+    </div>
+    <div class="node-definition-block">
+      <strong>Definition</strong>
+      <p>${escapeHtml(nodeData.definition || 'No definition recorded.')}</p>
+    </div>
+    <button class="btn-primary-action" id="viewOkfCardBtn">
+      <i class="ph-bold ph-file-code" aria-hidden="true"></i><span>View OKF record</span>
+    </button>
+  `;
+  document.getElementById('viewOkfCardBtn')?.addEventListener('click', () => inspectOkfFor(nodeData.id));
 }
 
 window.inspectOkfFor = (conceptId) => {
-  const okfTab = document.querySelector('.workstation-tab[data-tab="tab-okf"], .nav-tab[data-tab="tab-okf"]');
-  if (okfTab) okfTab.click();
+  document.querySelector('.workstation-tab[data-tab="tab-okf"], .nav-tab[data-tab="tab-okf"]')?.click();
   loadConceptOkf(conceptId);
 };
 
-// ==================== OKF Layer Explorer ====================
-async function initOkfExplorer() {
-  document.getElementById('copyOkfBtn')?.addEventListener('click', () => {
+/* ==================== OKF explorer ==================== */
+function initOkfExplorer() {
+  document.getElementById('copyOkfBtn')?.addEventListener('click', async () => {
     const textEl = document.getElementById('okfMarkdownContent');
-    if (textEl) {
-      navigator.clipboard.writeText(textEl.innerText);
-      alert('OKF Markdown + YAML copied to clipboard!');
+    if (!textEl) return;
+    try {
+      await navigator.clipboard.writeText(textEl.innerText);
+      toast('Copied', 'OKF Markdown + YAML is on your clipboard.', 'success');
+    } catch (err) {
+      toast('Copy failed', err.message, 'error');
     }
   });
 
-  const filterInput = document.getElementById('filterConceptsInput');
-  filterInput?.addEventListener('input', (e) => {
+  document.getElementById('filterConceptsInput')?.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
     document.querySelectorAll('.okf-menu-item, .okf-item').forEach(item => {
       const head = item.querySelector('.okf-item-head, .okf-item-title');
@@ -771,72 +1004,54 @@ async function loadOkfConcepts() {
 
   try {
     const res = await fetch('/api/concepts');
-    if (res.ok) {
-      const concepts = await res.json();
-      if (concepts.length === 0) {
-        listEl.innerHTML = `
-          <div class="zero-data-state">
-            <div class="zero-state-icon">📂</div>
-            <div class="zero-state-heading">No Concepts Loaded</div>
-            <div class="zero-state-desc">Ingest a research document to extract and inspect typed OKF objects.</div>
-          </div>
-        `;
-        return;
-      }
+    if (!res.ok) return;
+    const concepts = await res.json();
 
-      listEl.innerHTML = concepts.map(c => `
-        <div class="okf-menu-item" data-id="${escapeHtml(c._id || c.name)}">
-          <div class="okf-item-head">${escapeHtml(c.name)}</div>
-          <div class="okf-item-caption">
-            <span>${escapeHtml(c.category || 'Entity')}</span> • <span>Mentions: ${c.mention_count || 1}</span>
-          </div>
-        </div>
-      `).join('');
+    if (concepts.length === 0) {
+      listEl.innerHTML = emptyState('ph-folder-open', 'No concepts loaded', 'Ingest a research document to extract typed OKF objects.');
+      return;
+    }
 
-      listEl.querySelectorAll('.okf-menu-item').forEach(item => {
-        item.addEventListener('click', () => {
-          listEl.querySelectorAll('.okf-menu-item').forEach(i => i.classList.remove('active'));
-          item.classList.add('active');
-          loadConceptOkf(item.getAttribute('data-id'));
-        });
+    listEl.innerHTML = concepts.map(c => `
+      <div class="okf-menu-item ${categoryClass(c.category)}" data-id="${escapeHtml(c._id || c.name)}">
+        <div class="okf-item-head">${escapeHtml(c.name)}</div>
+        <div class="okf-item-caption"><span class="okf-cat-dot"></span>${escapeHtml(c.category || 'Entity')} · ${c.mention_count || 1} mentions</div>
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('.okf-menu-item').forEach(item => {
+      item.addEventListener('click', () => {
+        listEl.querySelectorAll('.okf-menu-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        loadConceptOkf(item.getAttribute('data-id'));
       });
+    });
 
-      // Load first concept by default if none active
-      if (concepts.length > 0) {
-        const firstItem = listEl.querySelector('.okf-menu-item');
-        if (firstItem) {
-          firstItem.classList.add('active');
-          loadConceptOkf(concepts[0]._id || concepts[0].name);
-        }
-      }
+    const firstItem = listEl.querySelector('.okf-menu-item');
+    if (firstItem) {
+      firstItem.classList.add('active');
+      loadConceptOkf(concepts[0]._id || concepts[0].name);
     }
   } catch (err) {
-    listEl.innerHTML = `
-      <div class="zero-data-state">
-        <div class="zero-state-icon">⚠️</div>
-        <div class="zero-state-heading">Load Failed</div>
-        <div class="zero-state-desc">${escapeHtml(err.message)}</div>
-      </div>
-    `;
+    listEl.innerHTML = emptyState('ph-warning-circle', 'Load failed', err.message);
   }
 }
 
 async function loadConceptOkf(conceptId) {
   try {
     const res = await fetch(`/api/okf/concept/${encodeURIComponent(conceptId)}`);
-    if (res.ok) {
-      const data = await res.json();
-      const titleEl = document.getElementById('okfPreviewTitle');
-      const contentEl = document.getElementById('okfMarkdownContent');
-      if (titleEl) titleEl.textContent = `OKF Object: ${data.name}`;
-      if (contentEl) contentEl.textContent = data.okf_markdown;
-    }
+    if (!res.ok) return;
+    const data = await res.json();
+    const titleEl = document.getElementById('okfPreviewTitle');
+    const contentEl = document.getElementById('okfMarkdownContent');
+    if (titleEl) titleEl.textContent = data.name;
+    if (contentEl) contentEl.textContent = data.okf_markdown;
   } catch (err) {
     console.warn('Failed to load OKF for concept', err);
   }
 }
 
-// ==================== Dual Storage Inspector ====================
+/* ==================== Data registry ==================== */
 function initStorageInspector() {
   const storeTabs = document.querySelectorAll('.store-tab');
   storeTabs.forEach(st => {
@@ -854,23 +1069,38 @@ function initStorageInspector() {
   });
 
   document.getElementById('clearStorageBtn')?.addEventListener('click', async () => {
-    if (!confirm('Are you sure you want to completely purge all ingested documents, concepts, relationships, and vector chunks?')) {
-      return;
-    }
+    const ok = await confirmDialog(
+      'This permanently purges every ingested document, concept, relationship, source and vector chunk. It cannot be undone.',
+      { title: 'Purge the knowledge base?', confirmLabel: 'Purge everything' }
+    );
+    if (!ok) return;
+
     try {
       const res = await fetch('/api/storage/clear', { method: 'POST' });
       if (res.ok) {
-        alert('All ingested data, concepts, and vector embeddings have been purged.');
+        toast('Knowledge base purged', 'All documents, concepts and embeddings were removed.', 'success');
         refreshTelemetry();
         loadGraphData();
         loadOkfConcepts();
         const activeCol = document.querySelector('.store-tab.active')?.getAttribute('data-col') || 'col-docs';
         loadStorageData(activeCol);
+      } else {
+        toast('Purge failed', `Server responded ${res.status}`, 'error');
       }
     } catch (err) {
-      alert(`Error clearing storage: ${err.message}`);
+      toast('Purge failed', err.message, 'error');
     }
   });
+}
+
+function loadingRow(cols, label) {
+  return `<tr><td colspan="${cols}" class="table-loading-cell">${escapeHtml(label)}</td></tr>`;
+}
+function emptyRow(cols, icon, heading, desc) {
+  return `<tr><td colspan="${cols}">${emptyState(icon, heading, desc)}</td></tr>`;
+}
+function errorRow(cols, message) {
+  return `<tr><td colspan="${cols}" class="table-error-cell">${escapeHtml(message)}</td></tr>`;
 }
 
 async function loadStorageData(col) {
@@ -879,135 +1109,86 @@ async function loadStorageData(col) {
   if (!thead || !tbody) return;
 
   if (col === 'col-docs') {
-    thead.innerHTML = '<th>Title</th><th>Type</th><th>Chunks</th><th>Concepts</th><th>Relationships</th><th>Created At</th>';
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">Querying MongoDB documents collection...</td></tr>';
+    thead.innerHTML = '<th>Title</th><th>Type</th><th>Chunks</th><th>Concepts</th><th>Relationships</th><th>Created</th>';
+    tbody.innerHTML = loadingRow(6, 'Querying documents…');
     try {
-      const res = await fetch('/api/documents');
-      const docs = await res.json();
-      if (docs.length === 0) {
-        tbody.innerHTML = `
+      const docs = await (await fetch('/api/documents')).json();
+      tbody.innerHTML = docs.length === 0
+        ? emptyRow(6, 'ph-files', 'No documents ingested', 'Upload a PDF, URL or Markdown file to populate the registry.')
+        : docs.map(d => `
           <tr>
-            <td colspan="6">
-              <div class="zero-data-state">
-                <div class="zero-state-icon">📄</div>
-                <div class="zero-state-heading">No Documents Ingested</div>
-                <div class="zero-state-desc">Upload a PDF, URL, or Markdown file to populate the research registry.</div>
-              </div>
-            </td>
+            <td><strong>${escapeHtml(d.title || d._id)}</strong></td>
+            <td><span class="concept-category-tag">${escapeHtml(d.source_type || 'doc')}</span></td>
+            <td class="table-mono-cell">${d.total_chunks || 0}</td>
+            <td class="table-mono-cell">${d.total_concepts || 0}</td>
+            <td class="table-mono-cell">${d.total_relationships || 0}</td>
+            <td class="table-mono-cell">${escapeHtml(d.created_at || '')}</td>
           </tr>
-        `;
-        return;
-      }
-      tbody.innerHTML = docs.map(d => `
-        <tr>
-          <td><strong>${escapeHtml(d.title || d._id)}</strong></td>
-          <td><span class="concept-category-tag">${escapeHtml(d.source_type || 'doc')}</span></td>
-          <td>${d.total_chunks || 0}</td>
-          <td>${d.total_concepts || 0}</td>
-          <td>${d.total_relationships || 0}</td>
-          <td style="font-size:0.78rem; font-family:var(--font-mono); color:var(--text-muted);">${escapeHtml(d.created_at || '')}</td>
-        </tr>
-      `).join('');
+        `).join('');
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="6" style="color:var(--accent-rose); text-align:center; padding:24px;">Error: ${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = errorRow(6, `Error: ${e.message}`);
     }
+
   } else if (col === 'col-concepts') {
-    thead.innerHTML = '<th>Concept Name</th><th>Category</th><th>Definition</th><th>Mentions</th>';
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted);">Querying MongoDB concepts collection...</td></tr>';
+    thead.innerHTML = '<th>Concept</th><th>Category</th><th>Definition</th><th>Mentions</th>';
+    tbody.innerHTML = loadingRow(4, 'Querying concepts…');
     try {
-      const res = await fetch('/api/concepts');
-      const concepts = await res.json();
-      if (concepts.length === 0) {
-        tbody.innerHTML = `
+      const concepts = await (await fetch('/api/concepts')).json();
+      tbody.innerHTML = concepts.length === 0
+        ? emptyRow(4, 'ph-tag', 'No concepts stored', 'Extracted OKF concepts will be listed here.')
+        : concepts.map(c => `
           <tr>
-            <td colspan="4">
-              <div class="zero-data-state">
-                <div class="zero-state-icon">🏷️</div>
-                <div class="zero-state-heading">No Concepts Stored</div>
-                <div class="zero-state-desc">Extracted OKF concepts will be listed here.</div>
-              </div>
-            </td>
+            <td><strong>${escapeHtml(c.name)}</strong></td>
+            <td><span class="concept-category-tag ${categoryClass(c.category)}">${escapeHtml(c.category || 'Entity')}</span></td>
+            <td class="table-note-cell">${escapeHtml(c.definition || '')}</td>
+            <td class="table-mono-cell">${c.mention_count || 1}</td>
           </tr>
-        `;
-        return;
-      }
-      tbody.innerHTML = concepts.map(c => `
-        <tr>
-          <td><strong>${escapeHtml(c.name)}</strong></td>
-          <td><span class="concept-category-tag">${escapeHtml(c.category || 'Entity')}</span></td>
-          <td style="font-size:0.84rem; color:var(--text-secondary); max-width:440px;">${escapeHtml(c.definition || '')}</td>
-          <td style="font-family:var(--font-mono); font-weight:600;">${c.mention_count || 1}</td>
-        </tr>
-      `).join('');
+        `).join('');
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--accent-rose); text-align:center; padding:24px;">Error: ${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = errorRow(4, `Error: ${e.message}`);
     }
+
   } else if (col === 'col-rels') {
-    thead.innerHTML = '<th>Source Concept</th><th>Relation Type</th><th>Target Concept</th><th>Description / Evidence</th>';
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted);">Querying MongoDB relationships collection...</td></tr>';
+    thead.innerHTML = '<th>Source</th><th>Relation</th><th>Target</th><th>Description / evidence</th>';
+    tbody.innerHTML = loadingRow(4, 'Querying relationships…');
     try {
-      const res = await fetch('/api/relationships');
-      const rels = await res.json();
-      if (rels.length === 0) {
-        tbody.innerHTML = `
+      const rels = await (await fetch('/api/relationships')).json();
+      tbody.innerHTML = rels.length === 0
+        ? emptyRow(4, 'ph-tree-structure', 'No relationships stored', 'Graph edges extracted between concepts are catalogued here.')
+        : rels.map(r => `
           <tr>
-            <td colspan="4">
-              <div class="zero-data-state">
-                <div class="zero-state-icon">🕸️</div>
-                <div class="zero-state-heading">No Relationships Stored</div>
-                <div class="zero-state-desc">Graph edges extracted between concepts will be cataloged here.</div>
-              </div>
-            </td>
+            <td><strong>${escapeHtml(r.source)}</strong></td>
+            <td><span class="concept-category-tag">${escapeHtml(r.relation_type)}</span></td>
+            <td><strong>${escapeHtml(r.target)}</strong></td>
+            <td class="table-note-cell">${escapeHtml(r.description || r.evidence || '')}</td>
           </tr>
-        `;
-        return;
-      }
-      tbody.innerHTML = rels.map(r => `
-        <tr>
-          <td><strong>${escapeHtml(r.source)}</strong></td>
-          <td><span class="concept-category-tag" style="background:#f3e8ff; color:#7e22ce;">${escapeHtml(r.relation_type)}</span></td>
-          <td><strong>${escapeHtml(r.target)}</strong></td>
-          <td style="font-size:0.84rem; color:var(--text-secondary);">${escapeHtml(r.description || r.evidence || '')}</td>
-        </tr>
-      `).join('');
+        `).join('');
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--accent-rose); text-align:center; padding:24px;">Error: ${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = errorRow(4, `Error: ${e.message}`);
     }
+
   } else if (col === 'col-sources') {
-    thead.innerHTML = '<th>Title</th><th>Modality</th><th>URI / File Path</th><th>Total Chunks</th>';
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px; color:var(--text-muted);">Querying MongoDB sources collection...</td></tr>';
+    thead.innerHTML = '<th>Title</th><th>Modality</th><th>URI / path</th><th>Chunks</th>';
+    tbody.innerHTML = loadingRow(4, 'Querying sources…');
     try {
-      const res = await fetch('/api/sources');
-      const sources = await res.json();
-      if (sources.length === 0) {
-        tbody.innerHTML = `
+      const sources = await (await fetch('/api/sources')).json();
+      tbody.innerHTML = sources.length === 0
+        ? emptyRow(4, 'ph-archive', 'No sources tracked', 'Original files and URLs are indexed here.')
+        : sources.map(s => `
           <tr>
-            <td colspan="4">
-              <div class="zero-data-state">
-                <div class="zero-state-icon">🗂️</div>
-                <div class="zero-state-heading">No Sources Tracked</div>
-                <div class="zero-state-desc">Original source files and URLs will be indexed here.</div>
-              </div>
-            </td>
+            <td><strong>${escapeHtml(s.title || s.id)}</strong></td>
+            <td><span class="concept-category-tag">${escapeHtml(s.source_type)}</span></td>
+            <td class="table-mono-cell">${escapeHtml(s.source_path_or_url || '')}</td>
+            <td class="table-mono-cell">${s.total_chunks || 0}</td>
           </tr>
-        `;
-        return;
-      }
-      tbody.innerHTML = sources.map(s => `
-        <tr>
-          <td><strong>${escapeHtml(s.title || s.id)}</strong></td>
-          <td><span class="concept-category-tag">${escapeHtml(s.source_type)}</span></td>
-          <td style="font-size:0.8rem; font-family:var(--font-mono);">${escapeHtml(s.source_path_or_url || '')}</td>
-          <td style="font-family:var(--font-mono); font-weight:600;">${s.total_chunks || 0}</td>
-        </tr>
-      `).join('');
+        `).join('');
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--accent-rose); text-align:center; padding:24px;">Error: ${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = errorRow(4, `Error: ${e.message}`);
     }
   }
 }
 
-// ==================== Settings Modal ====================
+/* ==================== Settings ==================== */
 function initSettingsModal() {
   const modal = document.getElementById('settingsModal');
   const openBtn = document.getElementById('openSettingsBtn');
@@ -1021,19 +1202,18 @@ function initSettingsModal() {
     modal.classList.add('open');
     try {
       const res = await fetch('/api/settings');
-      if (res.ok) {
-        const data = await res.json();
-        const modelSel = document.getElementById('groqModelSelect');
-        const uriInput = document.getElementById('mongoUriInput');
-        const hint = document.getElementById('apiKeyStatusHint');
+      if (!res.ok) return;
+      const data = await res.json();
+      const modelSel = document.getElementById('groqModelSelect');
+      const uriInput = document.getElementById('mongoUriInput');
+      const hint = document.getElementById('apiKeyStatusHint');
 
-        if (modelSel && data.groq_model) modelSel.value = data.groq_model;
-        if (uriInput) uriInput.value = (data.mongodb_uri && data.mongodb_uri.startsWith('mongodb')) ? data.mongodb_uri : '';
-        if (hint) {
-          hint.textContent = data.groq_api_key_set
-            ? `Active Key: ${data.groq_api_key_preview}`
-            : 'Status: Using environment default key';
-        }
+      if (modelSel && data.groq_model) modelSel.value = data.groq_model;
+      if (uriInput) uriInput.value = (data.mongodb_uri && data.mongodb_uri.startsWith('mongodb')) ? data.mongodb_uri : '';
+      if (hint) {
+        hint.textContent = data.groq_api_key_set
+          ? `Active key: ${data.groq_api_key_preview}`
+          : 'Using the environment default key';
       }
     } catch (err) {
       console.warn('Failed to load settings', err);
@@ -1045,25 +1225,19 @@ function initSettingsModal() {
   openBtn?.addEventListener('click', openModal);
   closeBtn?.addEventListener('click', closeModal);
   cancelBtn?.addEventListener('click', closeModal);
-
-  // Close modal when clicking scrim outside box
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeModal();
-  });
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const saveBtn = document.getElementById('saveSettingsBtn');
     const groqKey = document.getElementById('groqApiKeyInput')?.value.trim();
     const model = document.getElementById('groqModelSelect')?.value;
     const mongoUri = document.getElementById('mongoUriInput')?.value.trim();
 
-    const payload = {
-      groq_model: model,
-      mongodb_uri: mongoUri || ''
-    };
-    if (groqKey) {
-      payload.groq_api_key = groqKey;
-    }
+    const payload = { groq_model: model, mongodb_uri: mongoUri || '' };
+    if (groqKey) payload.groq_api_key = groqKey;
+
+    if (saveBtn) { saveBtn.disabled = true; setBtnLabel(saveBtn, 'Saving…'); }
 
     try {
       const res = await fetch('/api/settings', {
@@ -1072,19 +1246,24 @@ function initSettingsModal() {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        alert('Settings updated successfully!');
+        toast('Settings saved', 'Engine clients were refreshed.', 'success');
+        const keyInput = document.getElementById('groqApiKeyInput');
+        if (keyInput) keyInput.value = '';
         closeModal();
         refreshTelemetry();
       } else {
         const errData = await res.json();
-        alert(`Error saving settings: ${errData.detail || 'Unknown error'}`);
+        toast('Could not save settings', errData.detail || 'Unknown error', 'error');
       }
     } catch (err) {
-      alert(`Error saving settings: ${err.message}`);
+      toast('Could not save settings', err.message, 'error');
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; setBtnLabel(saveBtn, 'Save settings'); }
     }
   });
 }
 
+/* ==================== Utilities ==================== */
 function escapeHtml(text) {
   if (!text) return '';
   return String(text)
