@@ -1,143 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Research Knowledge Engine | RAG OKF Object Retrieval</title>
+  <title>Research Knowledge Engine | Enterprise Object Retrieval RAG</title>
+  
+  <!-- Premium Academic Typography Pairings -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
-    rel="stylesheet">
-  <!-- Cytoscape for interactive Knowledge Graph -->
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+  
+  <!-- Cytoscape Graph Visualization & Marked Markdown Renderer -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
-  <!-- Marked for markdown rendering -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
   <link rel="stylesheet" href="/static/style.css">
 </head>
+<body>
+  <!-- Abstract Theme Background Artwork Layer -->
+  <div class="abstract-artwork-layer" aria-hidden="true">
+    <div class="grid-mesh-overlay"></div>
+    <div class="fluid-glow-orb orb-indigo"></div>
+    <div class="fluid-glow-orb orb-cyan"></div>
+    <div class="fluid-glow-orb orb-emerald"></div>
+    
+    <!-- Generative Topological Contour SVG Curve Artwork -->
+    <svg class="topological-lines-svg" viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M-100 200 C 300 100, 600 350, 1000 200 C 1250 100, 1400 300, 1600 250" stroke="rgba(99, 102, 241, 0.12)" stroke-width="2" stroke-dasharray="6 6"/>
+      <path d="M-100 350 C 250 250, 700 500, 1100 350 C 1350 250, 1500 450, 1600 400" stroke="rgba(14, 165, 233, 0.1)" stroke-width="1.5"/>
+      <path d="M-100 500 C 350 400, 750 650, 1150 500 C 1400 400, 1500 600, 1600 550" stroke="rgba(16, 185, 129, 0.08)" stroke-width="2" stroke-dasharray="8 8"/>
+      <path d="M-100 650 C 400 550, 800 800, 1200 650 C 1450 550, 1550 750, 1600 700" stroke="rgba(99, 102, 241, 0.07)" stroke-width="1"/>
+    </svg>
+  </div>
 
-<body class="dark-theme">
-  <!-- Glow background effects -->
-  <div class="glow-orb orb-1"></div>
-  <div class="glow-orb orb-2"></div>
-  <div class="glow-orb orb-3"></div>
-
-  <!-- Top Navigation Header -->
-  <header class="app-header">
-    <div class="header-left">
-      <div class="logo-badge">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path
-            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-          </path>
+  <!-- Enterprise Header Navigation -->
+  <header class="enterprise-header">
+    <div class="brand-section">
+      <div class="brand-emblem" title="Research Knowledge Engine">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
         </svg>
       </div>
-      <div class="header-titles">
-        <h1 class="brand-title">RESEARCH KNOWLEDGE ENGINE</h1>
-        <div class="brand-subtitle">RAG OAK / OKF LangChain Object Retrieval Architecture</div>
+      <div class="brand-meta">
+        <div class="brand-title-text">
+          <span>RESEARCH KNOWLEDGE ENGINE</span>
+          <span class="academic-badge">RAG OAK / OKF</span>
+        </div>
+        <div class="brand-tagline">Object Knowledge Format & Hybrid Graph Retrieval System</div>
       </div>
     </div>
 
-    <!-- Live System Telemetry -->
-    <div class="header-right">
-      <div class="telemetry-pill" id="mongoStatusPill">
-        <span class="status-dot green"></span>
-        <span class="pill-label">MongoDB:</span>
-        <span class="pill-value" id="mongoStatusText">Connecting...</span>
+    <!-- Live Telemetry Status Bar -->
+    <div class="telemetry-deck">
+      <div class="telemetry-chip" id="mongoTelemetryChip" title="MongoDB Persistence Layer">
+        <span class="live-indicator-dot live-emerald"></span>
+        <span class="chip-label">Database:</span>
+        <span class="chip-data" id="mongoStatusText">Connecting...</span>
       </div>
-      <div class="telemetry-pill" id="vectorStatusPill">
-        <span class="status-dot cyan"></span>
-        <span class="pill-label">Vector Chunks:</span>
-        <span class="pill-value" id="vectorCountText">0</span>
+      <div class="telemetry-chip" id="vectorTelemetryChip" title="ChromaDB Dense Vector Embeddings">
+        <span class="live-indicator-dot live-cyan"></span>
+        <span class="chip-label">Indexed Chunks:</span>
+        <span class="chip-data" id="vectorCountText">0</span>
       </div>
-      <div class="telemetry-pill" id="conceptsStatusPill">
-        <span class="status-dot purple"></span>
-        <span class="pill-label">OKF Concepts:</span>
-        <span class="pill-value" id="conceptCountText">0</span>
+      <div class="telemetry-chip" id="conceptTelemetryChip" title="Extracted Typed OKF Concepts">
+        <span class="live-indicator-dot live-indigo"></span>
+        <span class="chip-label">Concepts:</span>
+        <span class="chip-data" id="conceptCountText">0</span>
       </div>
-      <button class="btn-settings-trigger" id="openSettingsBtn" title="Engine Settings">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+      <button class="btn-header-action" id="openSettingsBtn" title="Engine Diagnostics & Model Config">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
-          <path
-            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-          </path>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
         </svg>
-        <span>Settings</span>
+        <span>Engine Config</span>
       </button>
     </div>
   </header>
 
-  <!-- Navigation Tab Bar -->
-  <nav class="app-nav">
-    <button class="nav-tab active" data-tab="tab-research">
+  <!-- Workstation Navigation Tabs -->
+  <nav class="enterprise-tabs-nav" aria-label="Workstation View Navigation">
+    <button class="workstation-tab active" data-tab="tab-research">
       <span class="tab-icon">🔬</span>
-      <span class="tab-text">Research Assistant</span>
+      <span class="tab-title">Research Studio</span>
     </button>
-    <button class="nav-tab" data-tab="tab-ingest">
+    <button class="workstation-tab" data-tab="tab-ingest">
       <span class="tab-icon">📥</span>
-      <span class="tab-text">Document Ingestion</span>
+      <span class="tab-title">Ingestion Lab</span>
     </button>
-    <button class="nav-tab" data-tab="tab-graph">
+    <button class="workstation-tab" data-tab="tab-graph">
       <span class="tab-icon">🕸️</span>
-      <span class="tab-text">Knowledge Graph</span>
+      <span class="tab-title">Topological Knowledge Graph</span>
     </button>
-    <button class="nav-tab" data-tab="tab-okf">
+    <button class="workstation-tab" data-tab="tab-okf">
       <span class="tab-icon">📄</span>
-      <span class="tab-text">OKF Layer Explorer</span>
+      <span class="tab-title">OKF Layer Spec & Explorer</span>
     </button>
-    <button class="nav-tab" data-tab="tab-storage">
+    <button class="workstation-tab" data-tab="tab-storage">
       <span class="tab-icon">🗄️</span>
-      <span class="tab-text">Dual Storage (Mongo + Vector)</span>
+      <span class="tab-title">Enterprise Data Registry</span>
     </button>
   </nav>
 
-  <!-- Main Container -->
-  <main class="app-main">
+  <!-- Main Workstation Viewport -->
+  <main class="workstation-viewport">
 
-    <!-- TAB 1: RESEARCH ASSISTANT -->
-    <section class="tab-panel active" id="tab-research">
-      <div class="research-grid">
-        <!-- Chat & Query Column -->
-        <div class="chat-column glass-panel">
-          <div class="panel-header">
-            <div class="panel-title">
-              <span class="icon">💬</span>
+    <!-- ==================== TAB 1: RESEARCH STUDIO ==================== -->
+    <section class="tab-view active" id="tab-research">
+      <div class="studio-layout">
+        
+        <!-- Interactive Dialogue Chamber -->
+        <div class="chat-chamber enterprise-card">
+          <div class="card-header-bar">
+            <div class="card-header-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-indigo)" stroke-width="2.2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
               <h2>Grounded Research Dialogue</h2>
             </div>
-            <div class="panel-badge" id="activeModelBadge">Groq: llama-3.3-70b-versatile</div>
+            <span class="card-tag-pill" id="activeModelBadge">Groq: llama-3.3-70b</span>
           </div>
 
-          <div class="messages-container" id="chatMessages">
-            <!-- Welcome message -->
-            <div class="message-card assistant">
-              <div class="message-header">
-                <div class="author-badge">Research Knowledge Engine</div>
-                <div class="timestamp">Ready</div>
-              </div>
-              <div class="message-content">
-                <p>Welcome! I am your <strong>RAG OKF Knowledge Engine</strong> powered by LangChain Hybrid Retrieval
-                  and Groq LLM.</p>
-                <p>Ingest research papers (PDF), articles (URL), or notes (Markdown) to extract typed concepts and
-                  relationships. Then query me to receive research answers with strict citations, provenance, and
-                  related concept graphs.</p>
-                <div class="suggested-queries">
-                  <span class="pill-hint">Try sample query:</span>
-                  <button class="btn-sample-query">Explain the core architecture and concept relationships</button>
-                  <button class="btn-sample-query">What mechanisms and tools are implemented?</button>
+          <div class="chat-dialogue-feed" id="chatMessages">
+            <!-- Initial clean ready state (no dummy mock data) -->
+            <div class="speech-card assistant-speech">
+              <div class="speech-header">
+                <div class="speaker-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="m9 12 2 2 4-4"></path>
+                  </svg>
+                  <span>Research Knowledge Engine</span>
                 </div>
+                <span class="speech-time">System Ready</span>
+              </div>
+              <div class="speech-body academic-narrative">
+                <p>Welcome to the <strong>Research Knowledge Engine</strong>. This platform transforms unstructured scientific papers, technical URLs, and Markdown documentation into typed <strong>Open Knowledge Format (OKF)</strong> concept graphs with dual MongoDB and dense vector indexing.</p>
+                <p>Ingest your documents in the <strong>Ingestion Lab</strong> to construct your concept graph, or submit a research question below to retrieve evidence-backed answers with strict verbatim citations.</p>
               </div>
             </div>
           </div>
 
-          <!-- Query Input Area -->
-          <div class="chat-input-wrapper">
-            <form id="researchForm" class="chat-input-form">
-              <textarea id="queryInput" placeholder="Ask a research query across your ingested knowledge objects..."
-                rows="2" required></textarea>
-              <button type="submit" id="submitQueryBtn" class="btn-send">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- Prompt Composer Form -->
+          <div class="studio-prompt-container">
+            <form id="researchForm" class="prompt-composer-form">
+              <textarea id="queryInput" class="prompt-textarea" placeholder="Enter research query across your ingested knowledge objects..." rows="2" required></textarea>
+              <button type="submit" id="submitQueryBtn" class="btn-synthesize-submit" title="Synthesize Grounded Answer">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="22" y1="2" x2="11" y2="13"></line>
                   <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                 </svg>
@@ -146,243 +157,271 @@
           </div>
         </div>
 
-        <!-- Research Evidence Inspector Side Column -->
-        <div class="inspector-column glass-panel">
-          <div class="panel-header">
-            <div class="panel-title">
-              <span class="icon">🔍</span>
-              <h2>Object Inspector & Citations</h2>
-            </div>
-          </div>
-
-          <div class="inspector-tabs">
-            <button class="sub-tab active" data-sub="sub-citations">Citations</button>
-            <button class="sub-tab" data-sub="sub-concepts">Related Concepts</button>
-            <button class="sub-tab" data-sub="sub-provenance">Confidence & Provenance</button>
-          </div>
-
-          <div class="inspector-body">
-            <!-- Citations sub-tab -->
-            <div class="sub-panel active" id="sub-citations">
-              <div id="citationsList" class="empty-state">
-                <p>Run a research query to inspect grounded verbatim citations.</p>
-              </div>
-            </div>
-
-            <!-- Related Concepts sub-tab -->
-            <div class="sub-panel" id="sub-concepts">
-              <div id="relatedConceptsList" class="empty-state">
-                <p>Extracted OKF concepts linking to your query will appear here.</p>
-              </div>
-            </div>
-
-            <!-- Confidence / Provenance sub-tab -->
-            <div class="sub-panel" id="sub-provenance">
-              <div id="provenanceContainer" class="empty-state">
-                <p>Provenance score, grounding rationale, and source coverage will appear here.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB 2: INGESTION HUB -->
-    <section class="tab-panel" id="tab-ingest">
-      <div class="ingest-container">
-        <div class="ingest-grid">
-
-          <!-- PDF Card (PyMuPDF) -->
-          <div class="ingest-card glass-panel">
-            <div class="card-icon red">📑</div>
-            <h3>PDF Document Ingestion</h3>
-            <p class="card-desc">High-speed page-level text and layout extraction using <strong>PyMuPDF (fitz)</strong>.
-            </p>
-
-            <div class="drop-zone" id="pdfDropZone">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="12" y1="18" x2="12" y2="12"></line>
-                <line x1="9" y1="15" x2="12" y2="12"></line>
-                <line x1="15" y1="15" x2="12" y2="12"></line>
+        <!-- Evidence & Provenance Inspector Drawer -->
+        <div class="inspector-chamber enterprise-card">
+          <div class="card-header-bar">
+            <div class="card-header-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2.2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
-              <div class="drop-text">Drag & drop research PDF here or <span class="highlight">browse</span></div>
-              <input type="file" id="pdfFileInput" accept=".pdf" class="file-input-hidden">
+              <h2>Object Inspector & Provenance</h2>
             </div>
-            <div id="pdfSelectedName" class="file-selected-name"></div>
-            <button id="uploadPdfBtn" class="btn-primary" disabled>Ingest PDF Document</button>
           </div>
 
-          <!-- Web Loader Card (URL) -->
-          <div class="ingest-card glass-panel">
-            <div class="card-icon blue">🌐</div>
-            <h3>Web & Article Loader</h3>
-            <p class="card-desc">Extract sanitized research content, eliminating ads and navigation using
-              <strong>Trafilatura</strong>.</p>
-
-            <form id="urlIngestForm" class="ingest-form">
-              <div class="form-group">
-                <label for="urlInput">Documentation or Paper URL:</label>
-                <input type="url" id="urlInput" placeholder="https://arxiv.org/abs/... or blog URL" required>
-              </div>
-              <button type="submit" id="crawlUrlBtn" class="btn-primary">Fetch & Ingest URL</button>
-            </form>
+          <div class="inspector-segment-bar">
+            <button class="segment-btn active" data-sub="sub-citations">Citations</button>
+            <button class="segment-btn" data-sub="sub-concepts">Related Concepts</button>
+            <button class="segment-btn" data-sub="sub-provenance">Confidence & Provenance</button>
           </div>
 
-          <!-- Markdown / Raw Text Card -->
-          <div class="ingest-card glass-panel">
-            <div class="card-icon green">📝</div>
-            <h3>Markdown & TXT Loader</h3>
-            <p class="card-desc">Ingest raw markdown notes or documentation with frontmatter preservation.</p>
+          <div class="inspector-scroll-area">
+            <!-- Citations Pane -->
+            <div class="inspector-pane active" id="sub-citations">
+              <div id="citationsList">
+                <div class="zero-data-state">
+                  <div class="zero-state-icon">📖</div>
+                  <div class="zero-state-heading">No Citations Yet</div>
+                  <div class="zero-state-desc">Submit a research query to inspect verified verbatim excerpts from source chunks.</div>
+                </div>
+              </div>
+            </div>
 
-            <form id="textIngestForm" class="ingest-form">
-              <div class="form-group">
-                <label for="textTitleInput">Document Title:</label>
-                <input type="text" id="textTitleInput" placeholder="e.g. Attention Mechanism Research Note" required>
+            <!-- Related Concepts Pane -->
+            <div class="inspector-pane" id="sub-concepts">
+              <div id="relatedConceptsList">
+                <div class="zero-data-state">
+                  <div class="zero-state-icon">🏷️</div>
+                  <div class="zero-state-heading">No Concepts Retrieved</div>
+                  <div class="zero-state-desc">Retrieved OKF typed concepts and graph relationships will appear here.</div>
+                </div>
               </div>
-              <div class="form-group">
-                <label for="textContentInput">Markdown / Plain Text Content:</label>
-                <textarea id="textContentInput" rows="5"
-                  placeholder="# Heading\n\nPaste markdown or raw research text here..." required></textarea>
+            </div>
+
+            <!-- Confidence / Provenance Pane -->
+            <div class="inspector-pane" id="sub-provenance">
+              <div id="provenanceContainer">
+                <div class="zero-data-state">
+                  <div class="zero-state-icon">🛡️</div>
+                  <div class="zero-state-heading">Awaiting Inquiry</div>
+                  <div class="zero-state-desc">Quantitative grounding scores, source coverage, and provenance verification metrics will populate after synthesis.</div>
+                </div>
               </div>
-              <button type="submit" id="saveTextBtn" class="btn-primary">Ingest Markdown Text</button>
-            </form>
+            </div>
           </div>
         </div>
 
-        <!-- Ingestion Activity & Progress Log -->
-        <div class="glass-panel activity-panel">
-          <div class="panel-header">
-            <div class="panel-title">
-              <span class="icon">⚡</span>
-              <h2>Ingestion Pipeline Log & OKF Generation</h2>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: INGESTION LAB ==================== -->
+    <section class="tab-view" id="tab-ingest">
+      <div class="ingestion-lab-grid">
+        
+        <!-- PDF PyMuPDF Modality -->
+        <div class="ingestion-modality-card enterprise-card">
+          <div class="modality-icon-container pdf-icon">📄</div>
+          <h3>PDF Document Ingestion</h3>
+          <p class="modality-lead-text">Extract high-fidelity page-level text, headings, and layout structure using <strong>PyMuPDF (fitz)</strong>.</p>
+          
+          <div class="enterprise-drop-zone" id="pdfDropZone">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.8">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="12" y2="12"></line>
+              <line x1="15" y1="15" x2="12" y2="12"></line>
+            </svg>
+            <div class="drop-zone-caption">Drag & drop research PDF here or <span class="action-link">browse</span></div>
+            <input type="file" id="pdfFileInput" accept=".pdf" class="file-input-hidden">
+          </div>
+          <div id="pdfSelectedName" class="file-name-selection-tag"></div>
+          <button id="uploadPdfBtn" class="btn-primary-action" disabled>Ingest PDF Document</button>
+        </div>
+
+        <!-- Web & URL Crawler Modality -->
+        <div class="ingestion-modality-card enterprise-card">
+          <div class="modality-icon-container web-icon">🌐</div>
+          <h3>Web & Article Loader</h3>
+          <p class="modality-lead-text">Extract sanitized research content, eliminating ads and navigation noise using <strong>Trafilatura</strong>.</p>
+          
+          <form id="urlIngestForm" class="enterprise-input-form" style="display:flex; flex-direction:column; flex:1;">
+            <div class="enterprise-input-group" style="flex:1;">
+              <label for="urlInput">Research URL / Documentation Endpoint:</label>
+              <input type="url" id="urlInput" class="enterprise-text-input" placeholder="https://arxiv.org/abs/... or research blog" required>
             </div>
-            <button class="btn-secondary" id="clearLogBtn">Clear Log</button>
+            <button type="submit" id="crawlUrlBtn" class="btn-primary-action">Fetch & Ingest URL</button>
+          </form>
+        </div>
+
+        <!-- Markdown & TXT Modality -->
+        <div class="ingestion-modality-card enterprise-card">
+          <div class="modality-icon-container txt-icon">📝</div>
+          <h3>Markdown & Notes Loader</h3>
+          <p class="modality-lead-text">Ingest markdown notes, research papers, or documentation with full frontmatter preservation.</p>
+          
+          <form id="textIngestForm" class="enterprise-input-form">
+            <div class="enterprise-input-group">
+              <label for="textTitleInput">Document Title / Topic:</label>
+              <input type="text" id="textTitleInput" class="enterprise-text-input" placeholder="e.g. Constitutional AI Research Note" required>
+            </div>
+            <div class="enterprise-input-group">
+              <label for="textContentInput">Markdown / Plain Text Content (or drag & drop .md file):</label>
+              <textarea id="textContentInput" class="enterprise-text-input" rows="5" placeholder="# Heading\n\nPaste markdown or drag a .md/.txt file here..." required></textarea>
+            </div>
+            <button type="submit" id="saveTextBtn" class="btn-primary-action">Ingest Markdown Text</button>
+          </form>
+        </div>
+
+      </div>
+
+      <!-- Real-Time Pipeline Activity Console -->
+      <div class="pipeline-activity-console">
+        <div class="console-header-bar">
+          <div class="console-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+            <span>Live Extraction & OKF Generation Pipeline Log</span>
           </div>
-          <div class="activity-log" id="ingestActivityLog">
-            <div class="log-entry info">System ready. Select a PDF, URL, or Markdown file to trigger the ingestion
-              pipeline.</div>
-          </div>
+          <button class="btn-subtle-action" id="clearLogBtn" style="color:#94a3b8; background:transparent; border-color:#334155;">Clear Log</button>
+        </div>
+        <div class="console-stream" id="ingestActivityLog">
+          <div class="console-entry info">System initialized. Awaiting document ingestion via PDF, URL, or Markdown.</div>
         </div>
       </div>
     </section>
 
-    <!-- TAB 3: KNOWLEDGE GRAPH -->
-    <section class="tab-panel" id="tab-graph">
-      <div class="graph-layout">
-        <div class="graph-canvas-container glass-panel">
-          <div class="graph-toolbar">
-            <div class="graph-legend">
-              <span class="legend-item"><span class="dot arch"></span>Architecture</span>
-              <span class="legend-item"><span class="dot mech"></span>Mechanism</span>
-              <span class="legend-item"><span class="dot tool"></span>Tool</span>
-              <span class="legend-item"><span class="dot entity"></span>Entity</span>
-              <span class="legend-item"><span class="dot metric"></span>Metric</span>
+    <!-- ==================== TAB 3: KNOWLEDGE GRAPH ==================== -->
+    <section class="tab-view" id="tab-graph">
+      <div class="graph-chamber-grid">
+        
+        <!-- Cytoscape Canvas Container -->
+        <div class="graph-canvas-wrapper enterprise-card">
+          <div class="graph-legend-strip">
+            <div class="legend-category-row">
+              <div class="legend-chip"><span class="legend-pill-dot dot-arch"></span>Architecture</div>
+              <div class="legend-chip"><span class="legend-pill-dot dot-mech"></span>Mechanism</div>
+              <div class="legend-chip"><span class="legend-pill-dot dot-tool"></span>Tool</div>
+              <div class="legend-chip"><span class="legend-pill-dot dot-entity"></span>Entity</div>
+              <div class="legend-chip"><span class="legend-pill-dot dot-metric"></span>Metric</div>
             </div>
-            <div class="graph-controls">
-              <button id="resetGraphBtn" class="btn-secondary">Reset Layout</button>
-              <button id="refreshGraphBtn" class="btn-secondary">Refresh Graph</button>
+            <div style="display:flex; gap:8px;">
+              <button id="resetGraphBtn" class="btn-subtle-action">Reset Layout</button>
+              <button id="refreshGraphBtn" class="btn-subtle-action">Refresh Graph</button>
             </div>
           </div>
-          <div id="cy" class="cytoscape-canvas"></div>
+          <div id="cy" class="cytoscape-render-viewport"></div>
         </div>
 
-        <!-- Graph Node Details Sidebar -->
-        <div class="graph-sidebar glass-panel" id="graphSidebar">
-          <div class="panel-header">
-            <div class="panel-title">
-              <span class="icon">📌</span>
-              <h2 id="selectedNodeName">Select a Concept</h2>
+        <!-- Graph Node Details Drawer -->
+        <div class="graph-inspector-sidebar enterprise-card">
+          <div class="card-header-bar">
+            <div class="card-header-title">
+              <span style="font-size:1.1rem;">📌</span>
+              <h2 id="selectedNodeName">Concept Inspector</h2>
             </div>
           </div>
-          <div id="selectedNodeDetails" class="node-details-content">
-            <p class="empty-state">Click any node in the knowledge graph to view its typed category, definition,
-              relationships, and source provenance.</p>
+          <div id="selectedNodeDetails" class="inspector-node-body">
+            <div class="zero-data-state">
+              <div class="zero-state-icon">🕸️</div>
+              <div class="zero-state-heading">Interactive Node Inspector</div>
+              <div class="zero-state-desc">Click any concept node in the knowledge graph to view its typed category, definition, relationships, and source provenance.</div>
+            </div>
           </div>
         </div>
+
       </div>
     </section>
 
-    <!-- TAB 4: OKF LAYER EXPLORER -->
-    <section class="tab-panel" id="tab-okf">
-      <div class="okf-explorer-grid">
-        <!-- Concepts List -->
-        <div class="glass-panel okf-list-panel">
-          <div class="panel-header">
-            <div class="panel-title">
-              <span class="icon">🏷️</span>
+    <!-- ==================== TAB 4: OKF LAYER SPEC & EXPLORER ==================== -->
+    <section class="tab-view" id="tab-okf">
+      <div class="okf-spec-grid">
+        
+        <!-- Left Concepts Menu -->
+        <div class="okf-index-panel enterprise-card">
+          <div class="card-header-bar">
+            <div class="card-header-title">
+              <span style="font-size:1.1rem;">🏷️</span>
               <h2>Typed Concepts (OKF)</h2>
             </div>
-            <input type="text" id="filterConceptsInput" placeholder="Filter concepts..." class="input-search">
           </div>
-          <div class="okf-items-list" id="okfConceptsList">
-            <div class="empty-state">No concepts loaded yet.</div>
+          <div class="filter-input-wrapper">
+            <input type="text" id="filterConceptsInput" class="enterprise-text-input" placeholder="Filter extracted concepts..." style="width:100%; font-size:0.82rem; padding:8px 12px;">
+          </div>
+          <div class="okf-concept-menu" id="okfConceptsList">
+            <div class="zero-data-state">
+              <div class="zero-state-icon">📂</div>
+              <div class="zero-state-heading">No Concepts Loaded</div>
+              <div class="zero-state-desc">Ingest a research document to extract and inspect typed OKF objects.</div>
+            </div>
           </div>
         </div>
 
-        <!-- Markdown + YAML Previewer -->
-        <div class="glass-panel okf-preview-panel">
-          <div class="panel-header">
-            <div class="panel-title">
-              <span class="icon">📋</span>
-              <h2 id="okfPreviewTitle">OKF Markdown + YAML Representation</h2>
+        <!-- Right Markdown + YAML Editor Sheet -->
+        <div class="okf-document-viewer enterprise-card">
+          <div class="card-header-bar">
+            <div class="card-header-title">
+              <span style="font-size:1.1rem;">📋</span>
+              <h2 id="okfPreviewTitle">Standard OKF Specification (Markdown + YAML)</h2>
             </div>
-            <div class="preview-actions">
-              <button id="copyOkfBtn" class="btn-secondary">Copy Markdown</button>
-            </div>
+            <button id="copyOkfBtn" class="btn-subtle-action">Copy Markdown + YAML</button>
           </div>
-          <div class="okf-code-container">
-            <pre><code id="okfMarkdownContent"># Select a concept from the left panel to inspect its standard Open Knowledge Format (OKF) Markdown + YAML representation.</code></pre>
+          <div class="okf-editor-sheet">
+            <pre><code id="okfMarkdownContent"># Open Knowledge Format (OKF)
+# Select an extracted concept from the index on the left to inspect its portable Markdown + YAML frontmatter representation.</code></pre>
           </div>
         </div>
+
       </div>
     </section>
 
-    <!-- TAB 5: DUAL STORAGE INSPECTOR -->
-    <section class="tab-panel" id="tab-storage">
-      <div class="storage-container">
-        <!-- Storage Stats Header -->
-        <div class="storage-stats-row">
-          <div class="stat-card glass-panel">
-            <div class="stat-val" id="statDocs">0</div>
-            <div class="stat-title">MongoDB Documents</div>
+    <!-- ==================== TAB 5: ENTERPRISE DATA REGISTRY ==================== -->
+    <section class="tab-view" id="tab-storage">
+      <div class="data-registry-container">
+        
+        <!-- Live System Metric Counters -->
+        <div class="registry-stats-dashboard">
+          <div class="registry-metric-card enterprise-card">
+            <div class="metric-numeric-display" id="statDocs">0</div>
+            <div class="metric-label-caption">MongoDB Documents</div>
           </div>
-          <div class="stat-card glass-panel">
-            <div class="stat-val" id="statConcepts">0</div>
-            <div class="stat-title">MongoDB Concepts</div>
+          <div class="registry-metric-card enterprise-card">
+            <div class="metric-numeric-display" id="statConcepts">0</div>
+            <div class="metric-label-caption">MongoDB Concepts</div>
           </div>
-          <div class="stat-card glass-panel">
-            <div class="stat-val" id="statRels">0</div>
-            <div class="stat-title">MongoDB Relationships</div>
+          <div class="registry-metric-card enterprise-card">
+            <div class="metric-numeric-display" id="statRels">0</div>
+            <div class="metric-label-caption">MongoDB Relationships</div>
           </div>
-          <div class="stat-card glass-panel">
-            <div class="stat-val" id="statSources">0</div>
-            <div class="stat-title">MongoDB Sources</div>
+          <div class="registry-metric-card enterprise-card">
+            <div class="metric-numeric-display" id="statSources">0</div>
+            <div class="metric-label-caption">MongoDB Sources</div>
           </div>
-          <div class="stat-card glass-panel">
-            <div class="stat-val" id="statChunks">0</div>
-            <div class="stat-title">ChromaDB Vector Chunks</div>
+          <div class="registry-metric-card enterprise-card">
+            <div class="metric-numeric-display" id="statChunks">0</div>
+            <div class="metric-label-caption">ChromaDB Chunks</div>
           </div>
         </div>
 
-        <!-- Sub Tabs for Collections -->
-        <div class="glass-panel storage-table-panel">
-          <div class="panel-header">
+        <!-- Dynamic Collection Data Table -->
+        <div class="registry-table-chamber enterprise-card">
+          <div class="card-header-bar">
             <div class="storage-tabs">
               <button class="store-tab active" data-col="col-docs">Documents</button>
               <button class="store-tab" data-col="col-concepts">Concepts</button>
               <button class="store-tab" data-col="col-rels">Relationships</button>
               <button class="store-tab" data-col="col-sources">Sources</button>
             </div>
-            <div style="display:flex; gap:8px;">
-              <button class="btn-secondary" id="refreshStorageBtn">Refresh Data</button>
-              <button class="btn-secondary" id="clearStorageBtn" style="color:var(--accent-rose); border-color:rgba(244, 63, 94, 0.4);">Clear All Data</button>
+            <div style="display:flex; gap:10px;">
+              <button class="btn-subtle-action" id="refreshStorageBtn">Refresh Data</button>
+              <button class="btn-subtle-action" id="clearStorageBtn" style="color:var(--accent-rose); border-color:var(--accent-rose-light); background:#fff;">Clear All Data</button>
             </div>
           </div>
 
-          <div class="table-container" id="storageTableContainer">
-            <table class="data-table" id="storageTable">
+          <div class="table-wrapper-responsive" id="storageTableContainer">
+            <table class="enterprise-tabular-view" id="storageTable">
               <thead>
                 <tr id="tableHeadRow">
                   <th>Title</th>
@@ -393,37 +432,46 @@
               </thead>
               <tbody id="tableBody">
                 <tr>
-                  <td colspan="4" class="empty-state">Loading MongoDB documents...</td>
+                  <td colspan="4">
+                    <div class="zero-data-state">
+                      <div class="zero-state-icon">📊</div>
+                      <div class="zero-state-heading">Registry Empty</div>
+                      <div class="zero-state-desc">No documents are currently stored in MongoDB Atlas.</div>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
+
       </div>
     </section>
+
   </main>
 
-  <!-- Settings Modal -->
-  <div class="modal-overlay" id="settingsModal">
-    <div class="modal-card glass-panel">
-      <div class="modal-header">
-        <div class="modal-title">
-          <span class="icon">⚙️</span>
+  <!-- Configuration & Diagnostics Modal -->
+  <div class="enterprise-modal-scrim" id="settingsModal">
+    <div class="modal-dialog-box">
+      <div class="modal-header-section">
+        <div class="card-header-title">
+          <span style="font-size:1.1rem;">⚙️</span>
           <h2>Engine Configuration</h2>
         </div>
-        <button class="modal-close" id="closeSettingsBtn">&times;</button>
+        <button class="btn-subtle-action" id="closeSettingsBtn" style="padding:4px 10px; font-size:1.1rem;">&times;</button>
       </div>
-      <form id="settingsForm" class="modal-body">
-        <div class="form-group">
+
+      <form id="settingsForm" class="modal-body-form">
+        <div class="enterprise-input-group">
           <label for="groqApiKeyInput">Groq API Key:</label>
-          <input type="password" id="groqApiKeyInput" placeholder="gsk_..." autocomplete="off">
-          <span class="form-hint" id="apiKeyStatusHint">Status: Checking...</span>
+          <input type="password" id="groqApiKeyInput" class="enterprise-text-input" placeholder="gsk_..." autocomplete="off">
+          <span class="form-hint" id="apiKeyStatusHint" style="font-size:0.75rem; color:var(--text-muted);">Status: Checking...</span>
         </div>
 
-        <div class="form-group">
+        <div class="enterprise-input-group">
           <label for="groqModelSelect">Groq LLM Model (RAG & Synthesis):</label>
-          <select id="groqModelSelect">
-            <option value="groq/compound" selected>groq/compound (Recommended - High Speed & Structured)</option>
+          <select id="groqModelSelect" class="enterprise-text-input">
+            <option value="qwen/qwen3.8-27b" selected>qwen/qwen3.8-27b (High Speed & Structured JSON)</option>
             <option value="openai/gpt-oss-120b">openai/gpt-oss-120b (Deep Reasoning 120B)</option>
             <option value="groq/compound-mini">groq/compound-mini (Compound Agent)</option>
             <option value="openai/gpt-oss-20b">openai/gpt-oss-20b</option>
@@ -431,15 +479,15 @@
           </select>
         </div>
 
-        <div class="form-group">
-          <label for="mongoUriInput">MongoDB URI (Local or Atlas):</label>
-          <input type="text" id="mongoUriInput" placeholder="mongodb://localhost:27017 or mongodb+srv://...">
-          <span class="form-hint">Leave blank to use embedded persistent document store.</span>
+        <div class="enterprise-input-group">
+          <label for="mongoUriInput">MongoDB URI (Atlas or Local):</label>
+          <input type="text" id="mongoUriInput" class="enterprise-text-input" placeholder="mongodb+srv://... or mongodb://localhost:27017">
+          <span class="form-hint" style="font-size:0.75rem; color:var(--text-muted);">Leave blank to use embedded persistent document store.</span>
         </div>
 
-        <div class="modal-footer">
-          <button type="button" class="btn-secondary" id="cancelSettingsBtn">Cancel</button>
-          <button type="submit" class="btn-primary" id="saveSettingsBtn">Save Settings</button>
+        <div class="modal-footer-row">
+          <button type="button" class="btn-subtle-action" id="cancelSettingsBtn">Cancel</button>
+          <button type="submit" class="btn-primary-action" id="saveSettingsBtn" style="width:auto;">Save Settings</button>
         </div>
       </form>
     </div>
@@ -447,5 +495,4 @@
 
   <script src="/static/app.js"></script>
 </body>
-
 </html>
