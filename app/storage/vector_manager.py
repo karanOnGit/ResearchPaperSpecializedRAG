@@ -65,12 +65,35 @@ class VectorManager:
             except Exception:
                 pass
 
+    def _get_collection(self):
+        """Safely get or re-initialize collection if handle became stale or deleted."""
+        if not self.client:
+            self._init_vector_store()
+        try:
+            if self.collection is not None:
+                self.collection.count()
+                return self.collection
+        except Exception:
+            pass
+
+        try:
+            self.collection = self.client.get_or_create_collection(
+                name=self.collection_name,
+                embedding_function=self.embedding_fn,
+                metadata={"hnsw:space": "cosine"}
+            )
+            return self.collection
+        except Exception as e:
+            print(f"[VectorManager] Error re-acquiring ChromaDB collection: {e}")
+            return None
+
     def add_chunks(self, chunks: List[DocumentChunk]):
         """Index a batch of DocumentChunks into the vector store."""
         if not chunks:
             return
 
-        if self.collection:
+        col = self._get_collection()
+        if col:
             ids = []
             documents = []
             metadatas = []
@@ -91,7 +114,7 @@ class VectorManager:
                     "source_path_or_url": c.metadata.get("source_path_or_url", "")
                 })
 
-            self.collection.upsert(
+            col.upsert(
                 ids=ids,
                 documents=documents,
                 metadatas=metadatas
@@ -116,53 +139,56 @@ class VectorManager:
             return []
 
         results: List[Tuple[DocumentChunk, float]] = []
+        col = self._get_collection()
 
-        if self.collection:
-            query_kwargs = {
-                "query_texts": [query],
-                "n_results": min(top_k, max(1, self.collection.count())),
-            }
-            if filter_dict:
-                query_kwargs["where"] = filter_dict
-
+        if col:
             try:
-                res = self.collection.query(**query_kwargs)
-            except Exception as e:
-                print(f"[VectorManager] Query error: {e}")
-                return []
+                col_count = col.count()
+            except Exception:
+                col_count = 0
 
-            if res and res.get("ids") and len(res["ids"][0]) > 0:
-                ids = res["ids"][0]
-                docs = res["documents"][0]
-                metadatas = res["metadatas"][0]
-                distances = res["distances"][0] if res.get("distances") else [0.5] * len(ids)
+            if col_count > 0:
+                query_kwargs = {
+                    "query_texts": [query],
+                    "n_results": min(top_k, col_count),
+                }
+                if filter_dict:
+                    query_kwargs["where"] = filter_dict
 
-                for cid, doc_text, meta, dist in zip(ids, docs, metadatas, distances):
-                    # Cosine distance to similarity: similarity = 1 - distance (or max(0, 1 - dist))
-                    similarity = max(0.0, min(1.0, 1.0 - dist))
+                try:
+                    res = col.query(**query_kwargs)
+                    if res and res.get("ids") and len(res["ids"][0]) > 0:
+                        ids = res["ids"][0]
+                        docs = res["documents"][0]
+                        metadatas = res["metadatas"][0]
+                        distances = res["distances"][0] if res.get("distances") else [0.5] * len(ids)
 
-                    concepts_list = []
-                    if meta.get("concepts"):
-                        try:
-                            concepts_list = json.loads(meta["concepts"])
-                        except Exception:
-                            pass
+                        for cid, doc_text, meta, dist in zip(ids, docs, metadatas, distances):
+                            similarity = max(0.0, min(1.0, 1.0 - dist))
+                            concepts_list = []
+                            if meta.get("concepts"):
+                                try:
+                                    concepts_list = json.loads(meta["concepts"])
+                                except Exception:
+                                    pass
 
-                    chunk = DocumentChunk(
-                        chunk_id=meta.get("chunk_id", cid),
-                        doc_id=meta.get("doc_id", ""),
-                        source_title=meta.get("source_title", ""),
-                        source_type=meta.get("source_type", ""),
-                        content=doc_text,
-                        cleaned_content=doc_text,
-                        page_number=meta.get("page_number") if meta.get("page_number", -1) != -1 else None,
-                        section=meta.get("section", ""),
-                        chunk_index=meta.get("chunk_index", 0),
-                        token_count=meta.get("token_count", 0),
-                        concepts=concepts_list,
-                        metadata={"source_path_or_url": meta.get("source_path_or_url", "")}
-                    )
-                    results.append((chunk, similarity))
+                            chunk = DocumentChunk(
+                                chunk_id=meta.get("chunk_id", cid),
+                                doc_id=meta.get("doc_id", ""),
+                                source_title=meta.get("source_title", ""),
+                                source_type=meta.get("source_type", ""),
+                                content=doc_text,
+                                cleaned_content=doc_text,
+                                page_number=meta.get("page_number") if meta.get("page_number", -1) != -1 else None,
+                                section=meta.get("section", ""),
+                                chunk_index=meta.get("chunk_index", 0),
+                                token_count=meta.get("token_count", 0),
+                                concepts=concepts_list,
+                                metadata={"source_path_or_url": meta.get("source_path_or_url", "")}
+                            )
+                            results.append((chunk, similarity))
+                except Exception as e:
+                    print(f"[VectorManager] Query error: {e}")
         else:
             # Fallback keyword match
             q_words = set(query.lower().split())
@@ -180,8 +206,12 @@ class VectorManager:
 
     def get_stats(self) -> Dict[str, Any]:
         """Get vector store statistics."""
-        if self.collection:
-            total_vectors = self.collection.count()
+        col = self._get_collection()
+        if col:
+            try:
+                total_vectors = col.count()
+            except Exception:
+                total_vectors = 0
             return {
                 "engine": "ChromaDB",
                 "collection": self.collection_name,
@@ -197,17 +227,15 @@ class VectorManager:
             }
 
     def clear_all(self):
-        """Purge all chunks and vectors from vector store."""
-        if self.client and self.collection:
+        """Purge all chunks and vectors from vector store without invalidating collection."""
+        col = self._get_collection()
+        if col:
             try:
-                self.client.delete_collection(self.collection_name)
-                self.collection = self.client.get_or_create_collection(
-                    name=self.collection_name,
-                    embedding_function=self.embedding_fn,
-                    metadata={"hnsw:space": "cosine"}
-                )
+                all_items = col.get()
+                if all_items and all_items.get("ids"):
+                    col.delete(ids=all_items["ids"])
             except Exception as e:
-                print(f"[VectorManager] Error resetting ChromaDB collection: {e}")
+                print(f"[VectorManager] Error clearing ChromaDB items: {e}")
         self._memory_chunks = {}
         fallback_file = Path(self.persist_dir) / "memory_chunks.json"
         if fallback_file.exists():

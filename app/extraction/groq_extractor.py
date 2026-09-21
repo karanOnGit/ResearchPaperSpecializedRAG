@@ -161,8 +161,24 @@ Return ONLY valid JSON matching this schema:
             max_tokens=500,
         )
 
-        content = response.choices[0].message.content
-        data = json.loads(content)
+        content = response.choices[0].message.content or ""
+        clean_content = content.strip()
+        if clean_content.startswith("```"):
+            clean_content = re.sub(r"^```(?:json)?\s*", "", clean_content)
+            clean_content = re.sub(r"\s*```$", "", clean_content)
+
+        if not clean_content or not clean_content.startswith("{"):
+            # Try to find JSON object substring
+            json_match = re.search(r"\{.*\}", clean_content, re.DOTALL)
+            if json_match:
+                clean_content = json_match.group(0)
+            else:
+                return self._extract_with_heuristics(chunk, doc_id, source_title, source_url_or_path)
+
+        try:
+            data = json.loads(clean_content)
+        except Exception:
+            return self._extract_with_heuristics(chunk, doc_id, source_title, source_url_or_path)
 
         raw_concepts = data.get("concepts", [])
         raw_rels = data.get("relationships", [])
