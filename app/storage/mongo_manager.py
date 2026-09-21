@@ -190,6 +190,27 @@ class MongoManager:
         }
         return list(self.db.relationships.find(query))
 
+    def find_relationships_by_predicate_or_terms(self, terms: List[str], limit: int = 50) -> List[Dict[str, Any]]:
+        """Search explicit relationship triples by predicates, actions, entities, or description terms."""
+        if not terms:
+            return []
+        conditions = []
+        for t in terms:
+            t_clean = t.strip()
+            if len(t_clean) < 3:
+                continue
+            regex = {"$regex": t_clean, "$options": "i"}
+            conditions.extend([
+                {"source": regex},
+                {"target": regex},
+                {"relation_type": regex},
+                {"description": regex},
+                {"evidence_quote": regex},
+            ])
+        if not conditions:
+            return []
+        return list(self.db.relationships.find({"$or": conditions}).limit(limit))
+
     def list_relationships(self, limit: int = 200) -> List[Dict[str, Any]]:
         return list(self.db.relationships.find().limit(limit))
 

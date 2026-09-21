@@ -23,6 +23,17 @@ class GroqKnowledgeExtractor:
         all_concepts: Dict[str, OKFConcept] = {}
         all_relationships: List[OKFRelationship] = []
 
+        # 0. Extract explicit relationship triples and structured definitions from markdown/text chunks
+        explicit_concepts, explicit_rels = self._extract_explicit_triples_and_headings(
+            chunks=chunks,
+            doc_id=doc_id,
+            source_title=source_title,
+            source_url_or_path=source_url_or_path
+        )
+        for ec in explicit_concepts:
+            all_concepts[ec.name] = ec
+        all_relationships.extend(explicit_rels)
+
         # Process key representative chunks with Groq (up to 2 chunks to stay within 1000 OTPM limit)
         # and supplement remaining chunks with heuristic extraction
         groq_chunks_limit = 2
@@ -255,38 +266,48 @@ Return ONLY valid JSON matching this schema:
         pattern = r'\b([A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+){0,3})\b'
         candidates = re.findall(pattern, text)
 
-        # Filter stopwords
+        # Filter stopwords, metadata keywords, and action phrases
         stopwords = {
             "The", "This", "That", "These", "Those", "When", "Where", "What", "Which", "Why",
             "How", "In", "On", "At", "For", "With", "Without", "From", "To", "By", "An", "A",
-            "It", "We", "They", "Our", "Their", "However", "Furthermore", "Moreover", "Although"
+            "It", "We", "They", "Our", "Their", "However", "Furthermore", "Moreover", "Although",
+            "Only", "After", "Before", "Because", "Instead", "During", "Since", "Until",
+            "Type", "Definition", "Function", "Attributes", "Overview", "Source", "Version", "Created",
+            "Key Passages", "Provenance", "Summary", "Significance", "Manifestations", "Setting",
+            "Sphere", "Narrative", "Narrative Summary", "Daytime", "Satisfaction", "Present", "Power",
+            "Final", "Entities", "Concepts", "Core Concepts", "Primary Concept", "Key Actions",
+            "Desire Relationships", "Temporal Relationships", "Linguistic Relationships", "Recognition Relationships",
+            "Removes Ananya", "Removes", "Performs", "Penetrates", "Acknowledges", "Receives", "Allows",
+            "Climaxes", "Smiles", "Transforms", "Names", "Precision", "Quenching", "Embodiment", "Euphemism"
         }
 
         term_freq = {}
         for c in candidates:
-            c_clean = c.strip()
+            c_clean = c.strip().title()
             if c_clean not in stopwords and len(c_clean) > 3 and not c_clean.isdigit():
                 term_freq[c_clean] = term_freq.get(c_clean, 0) + 1
 
-        top_terms = sorted(term_freq.items(), key=lambda x: x[1], reverse=True)[:6]
+        top_terms = sorted(term_freq.items(), key=lambda x: x[1], reverse=True)[:5]
 
         extracted_concept_names = []
         for term, freq in top_terms:
             c_id = f"concept_{re.sub(r'[^a-zA-Z0-9]', '_', term.lower())[:32]}"
             
-            # Simple category deduction
+            # Category deduction
             category = "Entity"
             term_l = term.lower()
-            if any(w in term_l for w in ["model", "network", "transformer", "architecture", "system", "engine"]):
+            if any(w in term_l for w in ["model", "network", "transformer", "architecture", "system", "engine", "apartment", "bedroom"]):
                 category = "Architecture"
-            elif any(w in term_l for w in ["mechanism", "attention", "retrieval", "search", "algorithm"]):
+            elif any(w in term_l for w in ["mechanism", "attention", "retrieval", "search", "algorithm", "language", "speech"]):
                 category = "Mechanism"
             elif any(w in term_l for w in ["database", "tool", "mongo", "chroma", "langchain", "groq", "loader"]):
                 category = "Tool"
-            elif any(w in term_l for w in ["score", "metric", "accuracy", "loss", "recall"]):
+            elif any(w in term_l for w in ["score", "metric", "accuracy", "loss", "recall", "version"]):
                 category = "Metric"
             elif any(w in term_l for w in ["format", "protocol", "yaml", "json", "api", "okf"]):
                 category = "Protocol"
+            elif any(w in term_l for w in ["theory", "craving", "thirst", "appetite", "recognition", "intimacy", "dynamics"]):
+                category = "Theory"
 
             # Look for sentence containing this term for definition
             definition = f"A key {category.lower()} identified in {source_title}."
@@ -327,7 +348,6 @@ Return ONLY valid JSON matching this schema:
                 c1 = extracted_concept_names[i]
                 c2 = extracted_concept_names[j]
 
-                # Check if they occur in the same sentence
                 for sent in re.split(r'(?<=[.!?])\s+', text):
                     if c1 in sent and c2 in sent:
                         rel_type = "USES"
@@ -357,3 +377,192 @@ Return ONLY valid JSON matching this schema:
                         break
 
         return concepts, relationships
+
+    def _extract_explicit_triples_and_headings(
+        self,
+        chunks: List[DocumentChunk],
+        doc_id: str,
+        source_title: str,
+        source_url_or_path: str
+    ) -> Tuple[List[OKFConcept], List[OKFRelationship]]:
+        """Parse explicit relationship arrows, action lists, and structured concept definitions directly from document text."""
+        concepts: Dict[str, OKFConcept] = {}
+        relationships: List[OKFRelationship] = []
+
+        # Arrow pattern: - Subject **predicate** → Target
+        # Example: - Oral sex **temporarily quenches** → Rahul’s thirst
+        arrow_pattern = re.compile(
+            r'^[ \t]*[-*]\s*([^\*\n]+?)\s*\*\*([^\*\n]+)\*\*\s*(?:→|->)\s*([^\n]+)$',
+            re.MULTILINE
+        )
+
+        # Bold predicate pattern: - Subject **predicate** Target
+        bold_pred_pattern = re.compile(
+            r'^[ \t]*[-*]\s*([^\*\n]+?)\s*\*\*([^\*\n]+)\*\*\s+([^\n]+)$',
+            re.MULTILINE
+        )
+
+        for chunk in chunks:
+            text = chunk.cleaned_content
+            lines = text.splitlines()
+
+            # 1. Parse Arrow Relationships
+            for match in arrow_pattern.finditer(text):
+                src_raw = match.group(1).strip().strip('"\'')
+                pred_raw = match.group(2).strip()
+                tgt_raw = match.group(3).strip().strip('"\'')
+
+                if src_raw and tgt_raw and len(src_raw) > 1 and len(tgt_raw) > 1:
+                    src_clean = src_raw.strip().title()
+                    tgt_clean = tgt_raw.strip().title()
+                    pred_clean = re.sub(r'\s+', '_', pred_raw.strip().upper())
+                    evidence = match.group(0).strip()
+                    desc = f"{src_raw} {pred_raw} {tgt_raw}"
+
+                    rel_id = f"rel_exp_{uuid.uuid4().hex[:8]}"
+                    rel = OKFRelationship(
+                        id=rel_id,
+                        source=src_clean,
+                        target=tgt_clean,
+                        relation_type=pred_clean,
+                        description=desc,
+                        evidence_quote=evidence,
+                        doc_id=doc_id,
+                        chunk_id=chunk.chunk_id,
+                        confidence=1.0,
+                    )
+                    relationships.append(rel)
+
+                    # Ensure both endpoints exist as concepts
+                    for ep_name in [src_clean, tgt_clean]:
+                        if ep_name not in concepts and len(ep_name) > 2:
+                            c_id = f"concept_{re.sub(r'[^a-zA-Z0-9]', '_', ep_name.lower())[:32]}"
+                            concepts[ep_name] = OKFConcept(
+                                id=c_id,
+                                name=ep_name,
+                                category="Entity",
+                                definition=f"Explicit knowledge graph node identified in {source_title}.",
+                                aliases=[],
+                                provenance=OKFProvenance(
+                                    source_id=doc_id,
+                                    source_title=source_title,
+                                    source_url=source_url_or_path,
+                                    chunk_id=chunk.chunk_id,
+                                    page_number=chunk.page_number,
+                                    extractor="explicit/markdown-triple-parser",
+                                    confidence=1.0
+                                ),
+                                relationships=[],
+                                mention_count=1,
+                                tags=["ExplicitTriple"]
+                            )
+                            chunk.concepts.append(ep_name)
+
+            # 2. Parse Bold Predicate Relationships
+            for match in bold_pred_pattern.finditer(text):
+                src_raw = match.group(1).strip().strip('"\'')
+                pred_raw = match.group(2).strip()
+                tgt_raw = match.group(3).strip().strip('"\'')
+
+                # Avoid duplicates already matched by arrow
+                if "→" in tgt_raw or "->" in tgt_raw:
+                    continue
+
+                if src_raw and tgt_raw and len(src_raw) > 1 and len(tgt_raw) > 1:
+                    src_clean = src_raw.strip().title()
+                    tgt_clean = tgt_raw.strip().title()
+                    pred_clean = re.sub(r'\s+', '_', pred_raw.strip().upper())
+                    evidence = match.group(0).strip()
+                    desc = f"{src_raw} {pred_raw} {tgt_raw}"
+
+                    rel_id = f"rel_exp_{uuid.uuid4().hex[:8]}"
+                    rel = OKFRelationship(
+                        id=rel_id,
+                        source=src_clean,
+                        target=tgt_clean,
+                        relation_type=pred_clean,
+                        description=desc,
+                        evidence_quote=evidence,
+                        doc_id=doc_id,
+                        chunk_id=chunk.chunk_id,
+                        confidence=0.95,
+                    )
+                    relationships.append(rel)
+
+            # 3. Parse Character/Entity Key Actions
+            current_entity = None
+            in_actions_block = False
+
+            for line in lines:
+                line_s = line.strip()
+                if line_s.startswith("### ") or line_s.startswith("## "):
+                    # Extract header name
+                    header_name = re.sub(r'^[#]+\s*', '', line_s)
+                    # Strip parentheses like (Entity) or (`Entity`)
+                    header_name = re.sub(r'\s*\(.*?\)', '', header_name).strip()
+                    if header_name and len(header_name) > 2 and header_name not in ["Overview", "Key Passages", "Provenance", "Relationships"]:
+                        current_entity = header_name.title()
+                    else:
+                        current_entity = None
+                    in_actions_block = False
+                    continue
+
+                if current_entity and ("**Key actions**" in line_s or "**Key action" in line_s or "**Key actions:" in line_s):
+                    in_actions_block = True
+                    continue
+
+                if in_actions_block:
+                    if line_s.startswith("- ") or line_s.startswith("* "):
+                        action_text = line_s[2:].strip()
+                        if action_text:
+                            rel_id = f"rel_act_{uuid.uuid4().hex[:8]}"
+                            action_target = action_text.title()[:60]
+                            rel = OKFRelationship(
+                                id=rel_id,
+                                source=current_entity,
+                                target=action_target,
+                                relation_type="PERFORMS_ACTION",
+                                description=f"{current_entity} performs action: {action_text}",
+                                evidence_quote=line_s,
+                                doc_id=doc_id,
+                                chunk_id=chunk.chunk_id,
+                                confidence=0.95,
+                            )
+                            relationships.append(rel)
+                    elif line_s.startswith("#") or (line_s and not line_s.startswith("-") and not line_s.startswith("*")):
+                        in_actions_block = False
+
+            # 4. Parse Structured Concept Definitions (e.g. ### ConceptName (Category) \n - **Definition**: ...)
+            concept_header_matches = re.finditer(
+                r'###\s+([A-Za-z0-9\s"\'\-]+?)(?:\s*\((?:`?)([A-Za-z0-9\s]+)(?:`?)\))?\s*\n(?:>\s*(.+?)\n|(?:\s*-\s*\*\*Type\*\*:[^\n]+\n)?\s*-\s*\*\*Definition\*\*:\s*([^\n]+))',
+                text
+            )
+            for chm in concept_header_matches:
+                c_raw_name = chm.group(1).strip().strip('"\'').title()
+                cat_raw = (chm.group(2) or "Entity").strip()
+                def_raw = (chm.group(3) or chm.group(4) or "").strip()
+
+                if c_raw_name and len(c_raw_name) > 2 and def_raw and c_raw_name not in ["Key Passages", "Provenance", "Relationships", "Summary"]:
+                    c_id = f"concept_{re.sub(r'[^a-zA-Z0-9]', '_', c_raw_name.lower())[:32]}"
+                    concepts[c_raw_name] = OKFConcept(
+                        id=c_id,
+                        name=c_raw_name,
+                        category=cat_raw.title() if cat_raw else "Entity",
+                        definition=def_raw,
+                        aliases=[],
+                        provenance=OKFProvenance(
+                            source_id=doc_id,
+                            source_title=source_title,
+                            source_url=source_url_or_path,
+                            chunk_id=chunk.chunk_id,
+                            page_number=chunk.page_number,
+                            extractor="explicit/markdown-def-parser",
+                            confidence=1.0
+                        ),
+                        relationships=[],
+                        mention_count=1,
+                        tags=[cat_raw.title()]
+                    )
+                    chunk.concepts.append(c_raw_name)
+
+        return list(concepts.values()), relationships

@@ -4,44 +4,51 @@ from app.okf.models import DocumentChunk
 from app.processing.cleaner import TextCleaner
 
 try:
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
 except ImportError:
-    # Fallback recursive splitter if langchain text_splitter is imported differently
-    class RecursiveCharacterTextSplitter:
-        def __init__(self, chunk_size=1000, chunk_overlap=150, separators=None):
-            self.chunk_size = chunk_size
-            self.chunk_overlap = chunk_overlap
-            self.separators = separators or ["\n\n", "\n", ". ", " ", ""]
+    try:
+        from langchain.text_splitter import RecursiveCharacterTextSplitter
+    except ImportError:
+        class RecursiveCharacterTextSplitter:
+            def __init__(self, chunk_size=800, chunk_overlap=100, separators=None):
+                self.chunk_size = chunk_size
+                self.chunk_overlap = chunk_overlap
+                self.separators = separators or ["\n## ", "\n### ", "\n\n", "\n", ". ", " ", ""]
 
-        def split_text(self, text: str) -> List[str]:
-            chunks = []
-            start = 0
-            text_len = len(text)
-            while start < text_len:
-                end = min(start + self.chunk_size, text_len)
-                if end < text_len:
-                    # try to find nearest separator
-                    for sep in self.separators:
-                        last_sep = text.rfind(sep, start, end)
-                        if last_sep != -1 and last_sep > start + (self.chunk_size // 2):
-                            end = last_sep + len(sep)
-                            break
-                chunk = text[start:end].strip()
-                if chunk:
-                    chunks.append(chunk)
-                start = max(start + 1, end - self.chunk_overlap)
-            return chunks
+            def split_text(self, text: str) -> List[str]:
+                chunks = []
+                start = 0
+                text_len = len(text)
+                while start < text_len:
+                    end = min(start + self.chunk_size, text_len)
+                    if end < text_len:
+                        for sep in self.separators:
+                            last_sep = text.rfind(sep, start, end)
+                            if last_sep != -1 and last_sep > start + (self.chunk_size // 3):
+                                end = last_sep + len(sep)
+                                break
+                    chunk = text[start:end].strip()
+                    if chunk:
+                        chunks.append(chunk)
+                    if end >= text_len:
+                        break
+                    # Ensure start always advances by at least max(1, chunk_size // 2)
+                    next_start = end - self.chunk_overlap
+                    if next_start <= start:
+                        next_start = start + max(1, self.chunk_size // 2)
+                    start = next_start
+                return chunks
 
 class TextChunker:
     """Chunks documents into semantic pieces while preserving page/section provenance."""
 
-    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 150):
+    def __init__(self, chunk_size: int = 800, chunk_overlap: int = 100):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            separators=["\n## ", "\n### ", "\n\n", "\n", ". ", " ", ""]
+            separators=["\n## ", "\n### ", "\n#### ", "\n\n", "\n", ". ", " ", ""]
         )
 
     def chunk_document(self, doc_data: Dict[str, Any], doc_id: str) -> List[DocumentChunk]:
