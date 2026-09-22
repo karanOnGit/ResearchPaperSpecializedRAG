@@ -2418,19 +2418,152 @@ select.enterprise-text-input option { background: var(--bg-surface-solid); color
 .dot-theory   { color: var(--cat-theory); clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%); }
 .dot-dataset  { color: var(--cat-dataset); border-radius: 5px / 3px; }
 
-.legend-chip { color: var(--text-secondary); }
-.legend-caption {
+.legend-chip {
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+.legend-chip:hover {
+  background: var(--hover-tint);
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+}
+.legend-chip.active {
+  background: var(--chip-bg);
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 1px var(--text-primary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.view-dimension-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-full);
+  padding: 2px;
+  gap: 2px;
+}
+.btn-dim-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.18em;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text-faint);
-  padding-right: 4px;
-  border-right: 1px solid var(--border-subtle);
-  margin-right: 2px;
+  color: var(--text-muted);
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+.btn-dim-toggle:hover {
+  color: var(--text-primary);
+  background: var(--hover-tint);
+}
+.btn-dim-toggle.active {
+  color: var(--text-primary);
+  background: var(--bg-card);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  font-weight: 700;
 }
 
 .graph-stage { position: relative; flex: 1; min-height: 0; }
+.graph-3d-render-viewport {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-void);
+  outline: none;
+  cursor: grab;
+}
+.graph-3d-render-viewport:active {
+  cursor: grabbing;
+}
+.graph-3d-render-viewport canvas {
+  display: block;
+  outline: none;
+}
+
+/* 3D Force Graph Tooltips */
+.scene-tooltip {
+  pointer-events: none !important;
+  z-index: 1000 !important;
+}
+.graph3d-tooltip {
+  max-width: 280px;
+  padding: 10px 14px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  color: #f8fafc;
+  font-family: var(--font-ui);
+  text-align: left;
+}
+[data-theme="light"] .graph3d-tooltip {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+.tooltip-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+.tooltip-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.tooltip-def {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 6px;
+}
+.graph3d-link-tooltip {
+  padding: 6px 10px;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #f8fafc;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  pointer-events: none;
+}
+[data-theme="light"] .graph3d-link-tooltip {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+}
+
 .cytoscape-render-viewport {
   position: absolute;
   inset: 0;
@@ -2501,6 +2634,74 @@ select.enterprise-text-input option { background: var(--bg-surface-solid); color
   font-size: 0.92rem;
   line-height: 1.68;
   color: var(--text-secondary);
+}
+
+.node-connections-list {
+  margin-top: 18px;
+  margin-bottom: 20px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 14px;
+}
+.node-connections-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 8px;
+}
+.node-connections-heading span.badge {
+  background: var(--chip-bg);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+}
+.connections-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.connection-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+.connection-item-row:hover {
+  background: var(--hover-tint);
+  border-color: var(--border-medium);
+  transform: translateX(2px);
+}
+.connection-target-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.connection-rel-badge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--chip-bg);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex: none;
 }
 
 /* ==================== 11 · OKF EXPLORER ==================== */

@@ -21,6 +21,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+  <!-- 3D WebGL Knowledge Graph -->
+  <script src="https://unpkg.com/3d-force-graph@1.80.0/dist/3d-force-graph.min.js"></script>
+
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -421,12 +424,24 @@
             <div class="legend-chip"><span class="legend-pill-dot dot-dataset"></span>Dataset</div>
           </div>
           <div class="legend-actions">
-            <button id="resetGraphBtn" class="btn-subtle-action"><i class="ph ph-arrows-out" aria-hidden="true"></i><span>Relayout</span></button>
-            <button id="refreshGraphBtn" class="btn-subtle-action"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i><span>Refresh</span></button>
+            <div class="view-dimension-toggle" role="group" aria-label="Graph Dimension View">
+              <button type="button" class="btn-dim-toggle active" id="btnGraph3D" title="3D WebGL Orbit View">
+                <i class="ph-bold ph-cube" aria-hidden="true"></i><span>3D Orbit</span>
+              </button>
+              <button type="button" class="btn-dim-toggle" id="btnGraph2D" title="2D Planar Layout">
+                <i class="ph-bold ph-square" aria-hidden="true"></i><span>2D Planar</span>
+              </button>
+            </div>
+            <button id="autoRotateGraphBtn" class="btn-subtle-action" title="Toggle orbital auto-rotation">
+              <i class="ph ph-play-circle" aria-hidden="true"></i><span id="autoRotateLabel">Auto-Rotate</span>
+            </button>
+            <button id="resetGraphBtn" class="btn-subtle-action" title="Center camera"><i class="ph ph-arrows-out" aria-hidden="true"></i><span>Center</span></button>
+            <button id="refreshGraphBtn" class="btn-subtle-action" title="Refresh graph data"><i class="ph ph-arrows-clockwise" aria-hidden="true"></i><span>Refresh</span></button>
           </div>
         </div>
-        <div class="graph-stage">
-          <div id="cy" class="cytoscape-render-viewport"></div>
+        <div class="graph-stage" id="graphStage">
+          <div id="graph3d" class="graph-3d-render-viewport"></div>
+          <div id="cy" class="cytoscape-render-viewport" style="display: none;"></div>
           <div class="graph-empty-overlay" id="graphEmptyState">
             <div class="zero-data-state">
               <div class="zero-state-icon"><i class="ph-thin ph-graph" aria-hidden="true"></i></div>
@@ -435,7 +450,7 @@
             </div>
           </div>
         </div>
-        <div class="graph-hint-bar"><i class="ph ph-hand-pointing" aria-hidden="true"></i> Drag to pan · scroll to zoom · tap a node to inspect</div>
+        <div class="graph-hint-bar" id="graphHintBar"><i class="ph ph-hand-pointing" aria-hidden="true"></i> Left-click drag to orbit · Right-click drag to pan · Scroll to zoom · Click node to inspect &amp; focus</div>
       </div>
 
       <div class="graph-inspector-sidebar enterprise-card" data-reveal>

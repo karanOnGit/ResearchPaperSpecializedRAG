@@ -5,6 +5,15 @@
    ========================================================================== */
 
 let cy = null;
+let graph3d = null;
+let isGraph3DMode = true;
+let isAutoRotating = false;
+let rawGraphData = { nodes: [], edges: [] };
+let activeCategoryFilter = null;
+let highlighted3DNode = null;
+let highlighted3DNeighbors = new Set();
+let highlighted3DLinks = new Set();
+
 let currentCitations = [];
 let currentConcepts = [];
 let currentProvenance = null;
@@ -43,6 +52,7 @@ function initTheme() {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   if (cy) cy.style(buildGraphStyle());
+  if (graph3d) update3DTheme();
 }
 
 function cssVar(name, fallback) {
@@ -156,12 +166,20 @@ function initTabs() {
       history.replaceState(null, '', `#${targetId}`);
     }
 
-    if (targetId === 'tab-graph' && cy) {
+    if (targetId === 'tab-graph') {
       setTimeout(() => {
-        cy.resize();
-        cy.layout({ name: 'cose', animate: false }).run();
-        cy.fit(undefined, 48);
-      }, 120);
+        if (isGraph3DMode && graph3d) {
+          const container = document.getElementById('graph3d');
+          if (container && container.clientWidth > 0) {
+            graph3d.width(container.clientWidth);
+            graph3d.height(container.clientHeight);
+          }
+        } else if (cy) {
+          cy.resize();
+          cy.layout({ name: 'cose', animate: false }).run();
+          cy.fit(undefined, 48);
+        }
+      }, 100);
     } else if (targetId === 'tab-storage') {
       const activeCol = document.querySelector('.store-tab.active')?.getAttribute('data-col') || 'col-docs';
       loadStorageData(activeCol);
@@ -1070,91 +1088,428 @@ function updateLabelDensity() {
 }
 
 function computeLabelThreshold() {
+  if (!cy) return;
   const counts = cy.nodes().map(n => n.data('mention_count') || 1).sort((a, b) => b - a);
   if (counts.length === 0) { labelThreshold = 2; return; }
-  // Label roughly the top fifth by mention count
   labelThreshold = Math.max(2, counts[Math.floor(counts.length * 0.2)] || 2);
 }
 
-function initGraph() {
-  const container = document.getElementById('cy');
-  if (!container || typeof cytoscape === 'undefined') return;
+function getNodeCategoryColor(category) {
+  const k = categoryKey(category);
+  return cssVar(`--cat-${k}`, '#a1a1aa');
+}
 
-  cy = cytoscape({
-    container,
-    elements: [],
-    style: buildGraphStyle(),
-    layout: { name: 'cose', animate: false },
-    wheelSensitivity: 0.22,
-    minZoom: 0.2,
-    maxZoom: 3
-  });
+function getGraph3DBackground() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return isDark ? '#09090b' : '#fcfcfd';
+}
 
-  // Focus the neighbourhood of the tapped node
-  cy.on('tap', 'node', (evt) => {
-    const node = evt.target;
-    cy.elements().addClass('dimmed');
-    node.closedNeighborhood().removeClass('dimmed').addClass('label-forced');
-    showNodeDetails(node.data());
-  });
-  cy.on('tap', (evt) => {
-    if (evt.target === cy) {
-      cy.elements().removeClass('dimmed').removeClass('label-forced');
-      updateLabelDensity();
+function update3DTheme() {
+  if (!graph3d) return;
+  graph3d.backgroundColor(getGraph3DBackground());
+  graph3d.nodeColor(graph3d.nodeColor());
+  graph3d.linkColor(graph3d.linkColor());
+  graph3d.nodeThreeObject(graph3d.nodeThreeObject());
+}
+
+function init3DGraph() {
+  const container = document.getElementById('graph3d');
+  if (!container || typeof ForceGraph3D === 'undefined') return;
+
+  graph3d = ForceGraph3D({ controlType: 'orbit' })(container)
+    .backgroundColor(getGraph3DBackground())
+    .nodeId('id')
+    .nodeVal(node => Math.max(2.5, Math.sqrt(node.mention_count || 1) * 2.4))
+    .nodeResolution(24)
+    .nodeColor(node => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (activeCategoryFilter) {
+        if (categoryKey(node.category) === activeCategoryFilter) {
+          return getNodeCategoryColor(node.category);
+        }
+        return isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+      }
+      if (highlighted3DNode) {
+        if (node.id === highlighted3DNode.id || highlighted3DNeighbors.has(node.id)) {
+          return getNodeCategoryColor(node.category);
+        }
+        return isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+      }
+      return getNodeCategoryColor(node.category);
+    })
+    .nodeLabel(node => {
+      const color = getNodeCategoryColor(node.category);
+      return `<div class="graph3d-tooltip">
+        <div class="tooltip-title">${escapeHtml(node.label || node.id)}</div>
+        <div class="tooltip-meta">
+          <span class="tooltip-dot" style="background:${color}"></span>
+          <span class="tooltip-cat">${escapeHtml(node.category || 'Entity')}</span>
+          <span class="tooltip-sep">·</span>
+          <span class="tooltip-mentions">${node.mention_count || 1} mentions</span>
+        </div>
+        ${node.definition ? `<div class="tooltip-def">${escapeHtml(node.definition.slice(0, 140))}${node.definition.length > 140 ? '…' : ''}</div>` : ''}
+      </div>`;
+    })
+    .nodeThreeObjectExtend(true)
+    .nodeThreeObject(node => {
+      if (typeof SpriteText === 'undefined') return null;
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const isProminent = (node.mention_count || 1) >= 2;
+      const isFocus = highlighted3DNode && (node.id === highlighted3DNode.id || highlighted3DNeighbors.has(node.id));
+      const isCatFilter = activeCategoryFilter && categoryKey(node.category) === activeCategoryFilter;
+
+      if (!isProminent && !isFocus && !isCatFilter) return null;
+
+      const sprite = new SpriteText(node.label || node.id);
+      sprite.color = isDark ? '#ffffff' : '#0f172a';
+      sprite.textHeight = Math.max(3.2, Math.min(6.5, Math.sqrt(node.mention_count || 1) * 1.8));
+      sprite.fontFace = 'Inter Tight, -apple-system, BlinkMacSystemFont, sans-serif';
+      sprite.fontWeight = '600';
+      sprite.backgroundColor = isDark ? 'rgba(9, 9, 11, 0.78)' : 'rgba(255, 255, 255, 0.86)';
+      sprite.borderColor = getNodeCategoryColor(node.category);
+      sprite.borderWidth = 0.6;
+      sprite.borderRadius = 3;
+      sprite.padding = 2;
+      const radius = Math.max(2.5, Math.sqrt(node.mention_count || 1) * 2.4);
+      sprite.position.y = -(radius + 3.2);
+      return sprite;
+    })
+    .linkSource('source')
+    .linkTarget('target')
+    .linkColor(link => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const sId = typeof link.source === 'object' ? link.source.id : link.source;
+      const tId = typeof link.target === 'object' ? link.target.id : link.target;
+      if (highlighted3DNode) {
+        const isConnected = (sId === highlighted3DNode.id || tId === highlighted3DNode.id);
+        return isConnected
+          ? (isDark ? '#818cf8' : '#4f46e5')
+          : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)');
+      }
+      return isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.16)';
+    })
+    .linkWidth(link => {
+      if (highlighted3DNode) {
+        const sId = typeof link.source === 'object' ? link.source.id : link.source;
+        const tId = typeof link.target === 'object' ? link.target.id : link.target;
+        return (sId === highlighted3DNode.id || tId === highlighted3DNode.id) ? 2.5 : 0.8;
+      }
+      return 1.2;
+    })
+    .linkDirectionalParticles(link => {
+      if (highlighted3DNode) {
+        const sId = typeof link.source === 'object' ? link.source.id : link.source;
+        const tId = typeof link.target === 'object' ? link.target.id : link.target;
+        return (sId === highlighted3DNode.id || tId === highlighted3DNode.id) ? 4 : 0;
+      }
+      return 2;
+    })
+    .linkDirectionalParticleWidth(1.8)
+    .linkDirectionalParticleSpeed(0.006)
+    .linkDirectionalParticleColor(() => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      return isDark ? '#a78bfa' : '#6366f1';
+    })
+    .linkLabel(link => `<div class="graph3d-link-tooltip"><strong>${escapeHtml(link.label || 'CONNECTED_TO')}</strong>${link.description ? `<p style="margin:2px 0 0 0;font-size:0.65rem;color:var(--text-muted);">${escapeHtml(link.description)}</p>` : ''}</div>`)
+    .onNodeClick(node => {
+      handle3DNodeClick(node);
+    })
+    .onBackgroundClick(() => {
+      clear3DHighlight();
+    });
+
+  const controls = graph3d.controls();
+  if (controls) {
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.rotateSpeed = 0.8;
+    controls.zoomSpeed = 1.0;
+  }
+
+  // Force simulation parameters
+  graph3d.d3Force('charge')?.strength(-110);
+  graph3d.d3Force('link')?.distance(48);
+
+  // ResizeObserver for container resizing
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const cr = entry.contentRect;
+        if (cr.width > 0 && cr.height > 0 && graph3d) {
+          graph3d.width(cr.width);
+          graph3d.height(cr.height);
+        }
+      }
+    });
+    ro.observe(container);
+  }
+}
+
+function handle3DNodeClick(node) {
+  highlighted3DNode = node;
+  highlighted3DNeighbors.clear();
+  highlighted3DLinks.clear();
+
+  const data = graph3d.graphData();
+  data.links.forEach(l => {
+    const sId = typeof l.source === 'object' ? l.source.id : l.source;
+    const tId = typeof l.target === 'object' ? l.target.id : l.target;
+    if (sId === node.id) {
+      highlighted3DNeighbors.add(tId);
+      highlighted3DLinks.add(l);
+    } else if (tId === node.id) {
+      highlighted3DNeighbors.add(sId);
+      highlighted3DLinks.add(l);
     }
   });
 
-  // Hovering reveals a label without changing the view
-  cy.on('mouseover', 'node', (evt) => evt.target.closedNeighborhood().addClass('label-forced'));
-  cy.on('mouseout', 'node', (evt) => evt.target.closedNeighborhood().removeClass('label-forced'));
-  cy.on('zoom', updateLabelDensity);
+  graph3d
+    .nodeColor(graph3d.nodeColor())
+    .linkColor(graph3d.linkColor())
+    .linkWidth(graph3d.linkWidth())
+    .linkDirectionalParticles(graph3d.linkDirectionalParticles())
+    .nodeThreeObject(graph3d.nodeThreeObject());
 
-  document.getElementById('resetGraphBtn')?.addEventListener('click', () => {
-    cy.elements().removeClass('dimmed');
+  // Aim camera smoothly at node
+  const distance = 90;
+  const distRatio = 1 + distance / (Math.hypot(node.x, node.y, node.z) || 1);
+  graph3d.cameraPosition(
+    { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
+    node,
+    1100
+  );
+
+  showNodeDetails(node);
+}
+
+function clear3DHighlight() {
+  if (!highlighted3DNode && !activeCategoryFilter) return;
+  highlighted3DNode = null;
+  highlighted3DNeighbors.clear();
+  highlighted3DLinks.clear();
+  activeCategoryFilter = null;
+  document.querySelectorAll('.legend-chip').forEach(c => c.classList.remove('active'));
+
+  if (graph3d) {
+    graph3d
+      .nodeColor(graph3d.nodeColor())
+      .linkColor(graph3d.linkColor())
+      .linkWidth(graph3d.linkWidth())
+      .linkDirectionalParticles(graph3d.linkDirectionalParticles())
+      .nodeThreeObject(graph3d.nodeThreeObject());
+  }
+}
+
+function toggleAutoRotate() {
+  if (!graph3d) return;
+  const controls = graph3d.controls();
+  if (!controls) return;
+
+  isAutoRotating = !isAutoRotating;
+  controls.autoRotate = isAutoRotating;
+  controls.autoRotateSpeed = 1.2;
+
+  const btn = document.getElementById('autoRotateGraphBtn');
+  const label = document.getElementById('autoRotateLabel');
+  const icon = btn?.querySelector('i');
+  if (btn) btn.classList.toggle('active', isAutoRotating);
+  if (label) label.textContent = isAutoRotating ? 'Rotating' : 'Auto-Rotate';
+  if (icon) {
+    icon.className = isAutoRotating ? 'ph-fill ph-pause-circle' : 'ph ph-play-circle';
+  }
+}
+
+function toggleDimensionView(mode) {
+  isGraph3DMode = (mode === '3d');
+  const btn3D = document.getElementById('btnGraph3D');
+  const btn2D = document.getElementById('btnGraph2D');
+  const view3D = document.getElementById('graph3d');
+  const view2D = document.getElementById('cy');
+  const autoRotateBtn = document.getElementById('autoRotateGraphBtn');
+  const hintBar = document.getElementById('graphHintBar');
+
+  if (isGraph3DMode) {
+    btn3D?.classList.add('active');
+    btn2D?.classList.remove('active');
+    if (view3D) view3D.style.display = 'block';
+    if (view2D) view2D.style.display = 'none';
+    if (autoRotateBtn) autoRotateBtn.style.display = 'inline-flex';
+    if (hintBar) {
+      hintBar.innerHTML = '<i class="ph ph-hand-pointing" aria-hidden="true"></i> Left-click drag to orbit · Right-click drag to pan · Scroll to zoom · Click node to inspect &amp; focus';
+    }
+    setTimeout(() => {
+      if (graph3d && view3D) {
+        graph3d.width(view3D.clientWidth);
+        graph3d.height(view3D.clientHeight);
+      }
+    }, 60);
+  } else {
+    btn2D?.classList.add('active');
+    btn3D?.classList.remove('active');
+    if (view3D) view3D.style.display = 'none';
+    if (view2D) view2D.style.display = 'block';
+    if (autoRotateBtn) autoRotateBtn.style.display = 'none';
+    if (hintBar) {
+      hintBar.innerHTML = '<i class="ph ph-hand-pointing" aria-hidden="true"></i> Drag to pan · Scroll to zoom · Tap a node to inspect';
+    }
+    setTimeout(() => {
+      if (cy) {
+        cy.resize();
+        cy.fit(undefined, 48);
+      }
+    }, 60);
+  }
+}
+
+function resetGraphView() {
+  if (isGraph3DMode && graph3d) {
+    clear3DHighlight();
+    graph3d.cameraPosition({ x: 0, y: 0, z: 320 }, { x: 0, y: 0, z: 0 }, 1000);
+  } else if (cy) {
+    cy.elements().removeClass('dimmed').removeClass('label-forced');
     cy.layout({ name: 'cose', animate: true, animationDuration: 600, padding: 48 }).run();
-  });
+  }
+}
+
+function initGraph() {
+  const cyContainer = document.getElementById('cy');
+  if (cyContainer && typeof cytoscape !== 'undefined') {
+    cy = cytoscape({
+      container: cyContainer,
+      elements: [],
+      style: buildGraphStyle(),
+      layout: { name: 'cose', animate: false },
+      wheelSensitivity: 0.22,
+      minZoom: 0.2,
+      maxZoom: 3
+    });
+
+    cy.on('tap', 'node', (evt) => {
+      const node = evt.target;
+      cy.elements().addClass('dimmed');
+      node.closedNeighborhood().removeClass('dimmed').addClass('label-forced');
+      showNodeDetails(node.data());
+    });
+    cy.on('tap', (evt) => {
+      if (evt.target === cy) {
+        cy.elements().removeClass('dimmed').removeClass('label-forced');
+        updateLabelDensity();
+      }
+    });
+
+    cy.on('mouseover', 'node', (evt) => evt.target.closedNeighborhood().addClass('label-forced'));
+    cy.on('mouseout', 'node', (evt) => evt.target.closedNeighborhood().removeClass('label-forced'));
+    cy.on('zoom', updateLabelDensity);
+  }
+
+  // Initialize 3D Graph
+  init3DGraph();
+
+  // Dimension switch listeners
+  document.getElementById('btnGraph3D')?.addEventListener('click', () => toggleDimensionView('3d'));
+  document.getElementById('btnGraph2D')?.addEventListener('click', () => toggleDimensionView('2d'));
+
+  // Graph actions
+  document.getElementById('autoRotateGraphBtn')?.addEventListener('click', toggleAutoRotate);
+  document.getElementById('resetGraphBtn')?.addEventListener('click', resetGraphView);
   document.getElementById('refreshGraphBtn')?.addEventListener('click', loadGraphData);
+
+  // Category legend chip click filtering
+  document.querySelectorAll('.legend-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const text = chip.textContent.trim().toLowerCase();
+      const catKey = categoryKey(text);
+      if (activeCategoryFilter === catKey) {
+        activeCategoryFilter = null;
+        chip.classList.remove('active');
+      } else {
+        document.querySelectorAll('.legend-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        activeCategoryFilter = catKey;
+      }
+      if (isGraph3DMode && graph3d) {
+        graph3d.nodeColor(graph3d.nodeColor()).nodeThreeObject(graph3d.nodeThreeObject());
+      } else if (cy) {
+        if (!activeCategoryFilter) {
+          cy.elements().removeClass('dimmed');
+        } else {
+          cy.elements().addClass('dimmed');
+          cy.nodes(`[category @= "${activeCategoryFilter}"]`).removeClass('dimmed').addClass('label-forced');
+        }
+      }
+    });
+  });
 
   loadGraphData();
 }
 
 async function loadGraphData() {
-  if (!cy) return;
   try {
     const res = await fetch('/api/graph');
     if (!res.ok) return;
     const data = await res.json();
-    const elements = [];
+    rawGraphData = {
+      nodes: data.nodes || [],
+      edges: data.edges || []
+    };
 
-    (data.nodes || []).forEach(n => elements.push({
-      group: 'nodes',
-      data: {
-        id: n.id,
-        label: n.label,
-        category: n.category,
-        definition: n.definition,
-        mention_count: n.mention_count || 1
-      }
-    }));
+    // Update 3D Graph
+    if (graph3d) {
+      const gData = {
+        nodes: (data.nodes || []).map(n => ({
+          id: n.id,
+          label: n.label,
+          category: n.category,
+          definition: n.definition,
+          mention_count: n.mention_count || 1
+        })),
+        links: (data.edges || []).map(e => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          label: e.label,
+          description: e.description,
+          evidence: e.evidence
+        }))
+      };
+      graph3d.graphData(gData);
+    }
 
-    (data.edges || []).forEach(e => elements.push({
-      group: 'edges',
-      data: {
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        label: e.label,
-        description: e.description,
-        evidence: e.evidence
-      }
-    }));
+    // Update 2D Cytoscape
+    if (cy) {
+      const elements = [];
+      (data.nodes || []).forEach(n => elements.push({
+        group: 'nodes',
+        data: {
+          id: n.id,
+          label: n.label,
+          category: n.category,
+          definition: n.definition,
+          mention_count: n.mention_count || 1
+        }
+      }));
 
-    cy.elements().remove();
-    cy.add(elements);
-    cy.layout({ name: 'cose', animate: true, animationDuration: 700, padding: 48 }).run();
-    computeLabelThreshold();
-    updateLabelDensity();
-    document.getElementById('graphEmptyState')?.classList.toggle('hidden', cy.nodes().length > 0);
+      (data.edges || []).forEach(e => elements.push({
+        group: 'edges',
+        data: {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          label: e.label,
+          description: e.description,
+          evidence: e.evidence
+        }
+      }));
+
+      cy.elements().remove();
+      cy.add(elements);
+      cy.layout({ name: 'cose', animate: true, animationDuration: 700, padding: 48 }).run();
+      computeLabelThreshold();
+      updateLabelDensity();
+    }
+
+    const hasNodes = (data.nodes || []).length > 0;
+    document.getElementById('graphEmptyState')?.classList.toggle('hidden', hasNodes);
   } catch (err) {
     console.warn('Failed to load graph data', err);
   }
@@ -1166,6 +1521,35 @@ function showNodeDetails(nodeData) {
   if (titleEl) titleEl.textContent = nodeData.label || 'Concept';
   if (!detailsEl) return;
 
+  const connectedEdges = (rawGraphData.edges || []).filter(
+    e => e.source === nodeData.id || e.target === nodeData.id
+  );
+
+  let connectionsHtml = '';
+  if (connectedEdges.length > 0) {
+    const listItems = connectedEdges.slice(0, 15).map(e => {
+      const isOut = e.source === nodeData.id;
+      const otherId = isOut ? e.target : e.source;
+      const relLabel = e.label || (isOut ? '→ CONNECTS' : '← LINKED_BY');
+      return `
+        <div class="connection-item-row" onclick="window.focusGraphNode('${escapeHtml(otherId)}')">
+          <span class="connection-target-label" title="${escapeHtml(otherId)}">${escapeHtml(otherId)}</span>
+          <span class="connection-rel-badge">${escapeHtml(relLabel)}</span>
+        </div>
+      `;
+    }).join('');
+
+    connectionsHtml = `
+      <div class="node-connections-list">
+        <div class="node-connections-heading">
+          <span>Connected Concepts</span>
+          <span class="badge">${connectedEdges.length}</span>
+        </div>
+        <div class="connections-items">${listItems}</div>
+      </div>
+    `;
+  }
+
   detailsEl.innerHTML = `
     <div class="node-detail-row">
       <span class="concept-category-tag ${categoryClass(nodeData.category)}">${escapeHtml(nodeData.category || 'Entity')}</span>
@@ -1175,12 +1559,31 @@ function showNodeDetails(nodeData) {
       <strong>Definition</strong>
       <p>${escapeHtml(nodeData.definition || 'No definition recorded.')}</p>
     </div>
+    ${connectionsHtml}
     <button class="btn-primary-action" id="viewOkfCardBtn">
       <i class="ph-bold ph-file-code" aria-hidden="true"></i><span>View OKF record</span>
     </button>
   `;
   document.getElementById('viewOkfCardBtn')?.addEventListener('click', () => inspectOkfFor(nodeData.id));
 }
+
+window.focusGraphNode = (nodeId) => {
+  if (isGraph3DMode && graph3d) {
+    const data = graph3d.graphData();
+    const node = (data.nodes || []).find(n => n.id === nodeId);
+    if (node) {
+      handle3DNodeClick(node);
+    }
+  } else if (cy) {
+    const cyNode = cy.getElementById(nodeId);
+    if (cyNode && cyNode.length) {
+      cy.elements().addClass('dimmed');
+      cyNode.closedNeighborhood().removeClass('dimmed').addClass('label-forced');
+      cy.animate({ center: { eles: cyNode }, zoom: 1.5 }, { duration: 600 });
+      showNodeDetails(cyNode.data());
+    }
+  }
+};
 
 window.inspectOkfFor = (conceptId) => {
   document.querySelector('.workstation-tab[data-tab="tab-okf"], .nav-tab[data-tab="tab-okf"]')?.click();
