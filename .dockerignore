@@ -1,0 +1,13 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+.env
+data/uploads/*
+data/okf_exports/*
+data/vector_db/*
+data/.runtime_settings.json
+tests
