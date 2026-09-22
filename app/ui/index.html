@@ -123,62 +123,76 @@
 </header>
 
 <!-- ============================================================
-     WORKSTATION NAVIGATION
+     WORKSPACE SHELL (LEFT VERTICAL NAVIGATION + VIEWPORT)
      ============================================================ -->
-<nav class="enterprise-tabs-nav" aria-label="Workstation views">
-  <div class="tabs-rail">
-    <button class="workstation-tab active" data-tab="tab-research">
-      <span class="tab-index">01</span>
-      <i class="ph ph-brain tab-icon" aria-hidden="true"></i>
-      <span class="tab-title">Research Studio</span>
-    </button>
-    <button class="workstation-tab" data-tab="tab-ingest">
-      <span class="tab-index">02</span>
-      <i class="ph ph-flask tab-icon" aria-hidden="true"></i>
-      <span class="tab-title">Ingestion Lab</span>
-    </button>
-    <button class="workstation-tab" data-tab="tab-graph">
-      <span class="tab-index">03</span>
-      <i class="ph ph-graph tab-icon" aria-hidden="true"></i>
-      <span class="tab-title">Knowledge Graph</span>
-    </button>
-    <button class="workstation-tab" data-tab="tab-okf">
-      <span class="tab-index">04</span>
-      <i class="ph ph-article tab-icon" aria-hidden="true"></i>
-      <span class="tab-title">OKF Explorer</span>
-    </button>
-    <button class="workstation-tab" data-tab="tab-storage">
-      <span class="tab-index">05</span>
-      <i class="ph ph-hard-drives tab-icon" aria-hidden="true"></i>
-      <span class="tab-title">Data Registry</span>
-    </button>
-  </div>
-  <div class="nav-meta-note">
-    <kbd>⌘</kbd><kbd>1</kbd>–<kbd>5</kbd> to switch
-  </div>
-</nav>
+<div class="workspace-shell">
 
-<!-- ============================================================
-     MAIN VIEWPORT
-     ============================================================ -->
-<main class="workstation-viewport">
+  <!-- Vertical Left Navigation -->
+  <nav class="enterprise-tabs-nav" aria-label="Workstation views">
+    <div class="nav-sidebar-heading">
+      <span class="nav-section-title">Workspaces</span>
+      <span class="nav-count-badge">5 views</span>
+    </div>
+    <div class="tabs-rail">
+      <button class="workstation-tab active" data-tab="tab-research">
+        <span class="tab-index">01</span>
+        <i class="ph ph-brain tab-icon" aria-hidden="true"></i>
+        <span class="tab-title">Research Studio</span>
+      </button>
+      <button class="workstation-tab" data-tab="tab-ingest">
+        <span class="tab-index">02</span>
+        <i class="ph ph-flask tab-icon" aria-hidden="true"></i>
+        <span class="tab-title">Ingestion Lab</span>
+      </button>
+      <button class="workstation-tab" data-tab="tab-graph">
+        <span class="tab-index">03</span>
+        <i class="ph ph-graph tab-icon" aria-hidden="true"></i>
+        <span class="tab-title">Knowledge Graph</span>
+      </button>
+      <button class="workstation-tab" data-tab="tab-okf">
+        <span class="tab-index">04</span>
+        <i class="ph ph-article tab-icon" aria-hidden="true"></i>
+        <span class="tab-title">OKF Explorer</span>
+      </button>
+      <button class="workstation-tab" data-tab="tab-storage">
+        <span class="tab-index">05</span>
+        <i class="ph ph-hard-drives tab-icon" aria-hidden="true"></i>
+        <span class="tab-title">Data Registry</span>
+      </button>
+    </div>
+    <div class="nav-meta-note">
+      <kbd>⌘</kbd><kbd>1</kbd>–<kbd>5</kbd> to switch
+    </div>
+  </nav>
 
-  <!-- ============ 01 · RESEARCH STUDIO ============ -->
-  <section class="tab-view active" id="tab-research">
-    <div class="studio-layout">
+  <!-- ============================================================
+       MAIN VIEWPORT
+       ============================================================ -->
+  <main class="workstation-viewport">
 
-      <!-- Dialogue -->
-      <div class="chat-chamber enterprise-card" data-reveal>
-        <div class="card-header-bar">
-          <div class="card-header-title">
-            <i class="ph-duotone ph-chat-teardrop-dots" aria-hidden="true"></i>
-            <div>
-              <span class="card-kicker">Synthesis</span>
-              <h2>Grounded Research Dialogue</h2>
+    <!-- ============ 01 · RESEARCH STUDIO ============ -->
+    <section class="tab-view active" id="tab-research">
+      <div class="studio-layout">
+
+        <!-- Dialogue -->
+        <div class="chat-chamber enterprise-card" data-reveal>
+          <div class="card-header-bar">
+            <div class="card-header-title">
+              <i class="ph-duotone ph-chat-teardrop-dots" aria-hidden="true"></i>
+              <div>
+                <span class="card-kicker">Synthesis</span>
+                <h2>Grounded Research Dialogue</h2>
+              </div>
+            </div>
+            <div class="header-actions-deck">
+              <span class="card-tag-pill" id="activeModelBadge">Groq</span>
+              <button type="button" class="btn-ghost-sm" id="toggleSideInspectorBtn" title="Toggle side inspector panel">
+                <i class="ph ph-sidebar-simple" aria-hidden="true"></i>
+                <span id="toggleSideInspectorLabel">Side Inspector</span>
+              </button>
             </div>
           </div>
-          <span class="card-tag-pill" id="activeModelBadge">Groq</span>
-        </div>
+
 
         <div class="chat-dialogue-feed" id="chatMessages">
           <div class="speech-card assistant-speech">
@@ -573,6 +587,7 @@
   </section>
 
 </main>
+</div>
 
 <!-- ============================================================
      SETTINGS MODAL

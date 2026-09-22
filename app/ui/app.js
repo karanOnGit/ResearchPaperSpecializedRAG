@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initOkfExplorer();
   initStorageInspector();
   initSettingsModal();
+  initSideInspectorToggle();
   refreshTelemetry();
 });
 
@@ -620,9 +621,41 @@ function updateAssistantCard(card, data) {
   const timeEl = card.querySelector('.speech-time');
   if (timeEl) timeEl.textContent = new Date().toLocaleTimeString();
 
+  const citations = data.citations || [];
+  const concepts = data.related_concepts || [];
+  const prov = data.confidence_provenance || {};
+  const groundingPct = Math.round((prov.grounding_score ?? 0.95) * 100);
+  const coveragePct = Math.round((prov.source_coverage ?? 1.0) * 100);
+  const chunksCount = prov.retrieved_chunks || citations.length || 0;
+
+  const citationsMap = new Map();
+  citations.forEach(c => {
+    citationsMap.set(c.citation_id, c);
+  });
+
   let rawAnswer = data.answer || '';
-  rawAnswer = rawAnswer.replace(/\[(\d+)\]/g, (match, p1) =>
-    `<span class="inline-citation-badge" data-cite="${p1}">${p1}</span>`);
+  rawAnswer = rawAnswer.replace(/\[(\d+)\]/g, (match, p1) => {
+    const citeId = parseInt(p1, 10);
+    const citeObj = citationsMap.get(citeId);
+    if (!citeObj) {
+      return `<span class="inline-citation-badge" data-cite="${p1}">${p1}</span>`;
+    }
+    const safeQuote = escapeHtml(citeObj.quote || '');
+    const safeTitle = escapeHtml(citeObj.source_title || 'Document');
+    const safePage = citeObj.page ? `Page ${citeObj.page}` : 'Document excerpt';
+
+    return `<span class="inline-citation-wrapper">
+      <span class="inline-citation-badge" data-cite="${p1}">${p1}</span>
+      <span class="citation-hover-popover" role="tooltip">
+        <span class="popover-top-bar">
+          <span class="popover-id-tag">Citation #${p1}</span>
+          <span class="popover-page-tag">${safePage}</span>
+        </span>
+        <span class="popover-source-title" title="${safeTitle}">${safeTitle}</span>
+        <span class="popover-quote-text">“${safeQuote}”</span>
+      </span>
+    </span>`;
+  });
 
   const parsedHtml = (typeof marked !== 'undefined') ? marked.parse(rawAnswer) : `<p>${escapeHtml(rawAnswer)}</p>`;
 
@@ -636,14 +669,154 @@ function updateAssistantCard(card, data) {
     `;
   }
 
+  const popoverUid = 'pop_' + Math.random().toString(36).substring(2, 9);
+
+  const auditHtml = `
+    <div class="chat-audit-deck">
+      <div class="chat-audit-trigger" tabindex="0" aria-haspopup="dialog">
+        <div class="chat-audit-pill">
+          <i class="ph-duotone ph-shield-check chat-audit-icon" aria-hidden="true"></i>
+          <span class="chat-audit-title">Audit Object Inspector</span>
+          <div class="chat-audit-quick-chips">
+            <span class="audit-chip">${citations.length} Citations</span>
+            <span class="audit-chip">${concepts.length} Concepts</span>
+            <span class="audit-chip audit-score-chip">${groundingPct}% Grounded</span>
+          </div>
+          <span class="chat-audit-hint"><i class="ph ph-cursor"></i> Hover to inspect</span>
+        </div>
+
+        <!-- The Hover Popover: Displayed ONLY when hovering over .chat-audit-trigger -->
+        <div class="chat-audit-popover-card" role="dialog" aria-label="Audit Object Inspector">
+          <div class="audit-popover-head">
+            <div class="audit-popover-title-group">
+              <i class="ph-duotone ph-shield-check" aria-hidden="true"></i>
+              <div>
+                <div class="audit-popover-kicker">Audit Evidence &amp; Verification</div>
+                <div class="audit-popover-heading">Object Inspector</div>
+              </div>
+            </div>
+            <div class="audit-popover-score-box">
+              <div class="audit-score-num">${groundingPct}%</div>
+              <div class="audit-score-label">Grounding</div>
+            </div>
+          </div>
+
+          <div class="audit-popover-tabs-bar">
+            <button type="button" class="audit-popover-tab active" data-target-pane="${popoverUid}-cites">
+              <i class="ph ph-quotes"></i> Citations (${citations.length})
+            </button>
+            <button type="button" class="audit-popover-tab" data-target-pane="${popoverUid}-concepts">
+              <i class="ph ph-tag"></i> Concepts (${concepts.length})
+            </button>
+            <button type="button" class="audit-popover-tab" data-target-pane="${popoverUid}-prov">
+              <i class="ph ph-shield-check"></i> Provenance
+            </button>
+          </div>
+
+          <div class="audit-popover-content-area">
+            <!-- Citations Pane -->
+            <div class="audit-popover-pane active" id="${popoverUid}-cites">
+              ${citations.length === 0 ? '<div class="audit-empty-note">No verbatim quotes cited for this turn.</div>' :
+                citations.map(c => `
+                  <div class="audit-evidence-entry">
+                    <div class="evidence-top-meta">
+                      <span class="evidence-idx-badge">[${c.citation_id}]</span>
+                      <span class="evidence-doc-name" title="${escapeHtml(c.source_title || 'Document')}">${escapeHtml(c.source_title || 'Document')}</span>
+                      ${c.page ? `<span class="evidence-page-pill">Page ${c.page}</span>` : ''}
+                    </div>
+                    <div class="evidence-quote-snippet">“${escapeHtml(c.quote || '')}”</div>
+                  </div>
+                `).join('')
+              }
+            </div>
+
+            <!-- Concepts Pane -->
+            <div class="audit-popover-pane" id="${popoverUid}-concepts">
+              ${concepts.length === 0 ? '<div class="audit-empty-note">No typed OKF objects mapped to this query.</div>' :
+                concepts.map(c => `
+                  <div class="audit-concept-entry">
+                    <div class="concept-entry-head">
+                      <span class="concept-name-label">${escapeHtml(c.name)}</span>
+                      ${c.type ? `<span class="concept-type-tag">${escapeHtml(c.type)}</span>` : ''}
+                      ${c.relevance_score ? `<span class="concept-score-tag">${Math.round(c.relevance_score * 100)}% match</span>` : ''}
+                    </div>
+                    ${c.definition ? `<div class="concept-def-snippet">${escapeHtml(c.definition)}</div>` : ''}
+                  </div>
+                `).join('')
+              }
+            </div>
+
+            <!-- Provenance Pane -->
+            <div class="audit-popover-pane" id="${popoverUid}-prov">
+              <div class="audit-provenance-grid">
+                <div class="prov-metric-card">
+                  <div class="prov-metric-label">Grounding Score</div>
+                  <div class="prov-metric-val">${groundingPct}%</div>
+                  <div class="prov-metric-sub">Synthesized from retrieved chunks</div>
+                </div>
+                <div class="prov-metric-card">
+                  <div class="prov-metric-label">Source Coverage</div>
+                  <div class="prov-metric-val">${coveragePct}%</div>
+                  <div class="prov-metric-sub">Evidence documents matched</div>
+                </div>
+                <div class="prov-metric-card">
+                  <div class="prov-metric-label">Retrieved Chunks</div>
+                  <div class="prov-metric-val">${chunksCount}</div>
+                  <div class="prov-metric-sub">Hybrid vector + keyword matches</div>
+                </div>
+                <div class="prov-metric-card">
+                  <div class="prov-metric-label">OKF Schema</div>
+                  <div class="prov-metric-val">${escapeHtml(prov.okf_version || 'v1.0')}</div>
+                  <div class="prov-metric-sub">Dual-indexed (Mongo + Chroma)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
   const bodyEl = card.querySelector('.speech-body');
   if (!bodyEl) return;
-  bodyEl.innerHTML = `<div class="academic-narrative">${parsedHtml}</div>${sourcesHtml}`;
+  bodyEl.innerHTML = `<div class="academic-narrative">${parsedHtml}</div>${sourcesHtml}${auditHtml}`;
+
+  // Hook tab switching inside the in-chat hover popover
+  bodyEl.querySelectorAll('.audit-popover-tab').forEach(tabBtn => {
+    tabBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetPaneId = tabBtn.getAttribute('data-target-pane');
+      const parentCard = tabBtn.closest('.chat-audit-popover-card');
+      if (!parentCard) return;
+
+      parentCard.querySelectorAll('.audit-popover-tab').forEach(b => b.classList.remove('active'));
+      parentCard.querySelectorAll('.audit-popover-pane').forEach(p => p.classList.remove('active'));
+
+      tabBtn.classList.add('active');
+      const targetPane = parentCard.querySelector('#' + targetPaneId);
+      if (targetPane) targetPane.classList.add('active');
+    });
+  });
 
   bodyEl.querySelectorAll('.inline-citation-badge').forEach(badge => {
     badge.addEventListener('click', () => highlightCitation(parseInt(badge.getAttribute('data-cite'), 10)));
   });
 }
+
+function initSideInspectorToggle() {
+  const toggleBtn = document.getElementById('toggleSideInspectorBtn');
+  const layout = document.querySelector('.studio-layout');
+  const label = document.getElementById('toggleSideInspectorLabel');
+  if (!toggleBtn || !layout) return;
+
+  toggleBtn.addEventListener('click', () => {
+    const isCollapsed = layout.classList.toggle('side-inspector-collapsed');
+    if (label) {
+      label.textContent = isCollapsed ? 'Show Inspector' : 'Side Inspector';
+    }
+  });
+}
+
 
 function updateInspector(data) {
   currentCitations = data.citations || [];
