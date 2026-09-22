@@ -43,6 +43,12 @@ async def serve_ui():
             return HTMLResponse(content=f.read())
     return HTMLResponse("<h1>Research Knowledge Engine</h1><p>UI files loading...</p>")
 
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint for AWS load balancers, docker, and monitoring."""
+    return JSONResponse({"status": "healthy", "service": "okf-rag"})
+
+
 # ==================== Ingestion Endpoints ====================
 
 @app.post("/api/ingest/pdf")
