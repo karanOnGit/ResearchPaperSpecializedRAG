@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initStorageInspector();
   initSettingsModal();
   initSideInspectorToggle();
+  initSidebarExpandCollapse();
   refreshTelemetry();
 });
 
@@ -817,7 +818,43 @@ function initSideInspectorToggle() {
   });
 }
 
+function initSidebarExpandCollapse() {
+  const sidebarTrack = document.getElementById('sidebarTrack');
+  const sidebarNav = document.getElementById('sidebarNav');
+  const pinBtn = document.getElementById('pinSidebarBtn');
+  if (!sidebarTrack || !sidebarNav) return;
 
+  const PIN_KEY = 'rke-sidebar-pinned';
+  let isPinned = false;
+  try {
+    isPinned = localStorage.getItem(PIN_KEY) === 'true';
+  } catch (e) {}
+
+  const applyPinState = (pinned) => {
+    isPinned = pinned;
+    sidebarTrack.classList.toggle('is-pinned', pinned);
+    sidebarNav.classList.toggle('is-pinned', pinned);
+    if (pinBtn) {
+      pinBtn.classList.toggle('pinned', pinned);
+      pinBtn.title = pinned ? 'Unpin sidebar (collapse to hover mode)' : 'Pin sidebar open';
+    }
+    try {
+      localStorage.setItem(PIN_KEY, pinned ? 'true' : 'false');
+    } catch (e) {}
+  };
+
+  if (isPinned) {
+    applyPinState(true);
+  }
+
+  if (pinBtn) {
+    pinBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      applyPinState(!isPinned);
+      toast(isPinned ? 'Sidebar pinned' : 'Sidebar in hover mode', isPinned ? 'Expanded' : 'Hover to expand', 'info');
+    });
+  }
+}
 function updateInspector(data) {
   currentCitations = data.citations || [];
   currentConcepts = data.related_concepts || [];

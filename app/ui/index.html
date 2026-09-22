@@ -127,43 +127,48 @@
      ============================================================ -->
 <div class="workspace-shell">
 
-  <!-- Vertical Left Navigation -->
-  <nav class="enterprise-tabs-nav" aria-label="Workstation views">
-    <div class="nav-sidebar-heading">
-      <span class="nav-section-title">Workspaces</span>
-      <span class="nav-count-badge">5 views</span>
-    </div>
-    <div class="tabs-rail">
-      <button class="workstation-tab active" data-tab="tab-research">
-        <span class="tab-index">01</span>
-        <i class="ph ph-brain tab-icon" aria-hidden="true"></i>
-        <span class="tab-title">Research Studio</span>
-      </button>
-      <button class="workstation-tab" data-tab="tab-ingest">
-        <span class="tab-index">02</span>
-        <i class="ph ph-flask tab-icon" aria-hidden="true"></i>
-        <span class="tab-title">Ingestion Lab</span>
-      </button>
-      <button class="workstation-tab" data-tab="tab-graph">
-        <span class="tab-index">03</span>
-        <i class="ph ph-graph tab-icon" aria-hidden="true"></i>
-        <span class="tab-title">Knowledge Graph</span>
-      </button>
-      <button class="workstation-tab" data-tab="tab-okf">
-        <span class="tab-index">04</span>
-        <i class="ph ph-article tab-icon" aria-hidden="true"></i>
-        <span class="tab-title">OKF Explorer</span>
-      </button>
-      <button class="workstation-tab" data-tab="tab-storage">
-        <span class="tab-index">05</span>
-        <i class="ph ph-hard-drives tab-icon" aria-hidden="true"></i>
-        <span class="tab-title">Data Registry</span>
-      </button>
-    </div>
-    <div class="nav-meta-note">
-      <kbd>⌘</kbd><kbd>1</kbd>–<kbd>5</kbd> to switch
-    </div>
-  </nav>
+  <!-- Vertical Left Navigation Track (Hover Expandable / Collapsible) -->
+  <div class="sidebar-track" id="sidebarTrack">
+    <nav class="enterprise-tabs-nav" id="sidebarNav" aria-label="Workstation views">
+      <div class="nav-sidebar-heading">
+        <span class="nav-section-title">Workspaces</span>
+        <button type="button" class="sidebar-pin-btn" id="pinSidebarBtn" title="Pin sidebar open / collapsed" aria-label="Pin sidebar">
+          <i class="ph ph-push-pin" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="tabs-rail">
+        <button class="workstation-tab active" data-tab="tab-research" title="01 · Research Studio">
+          <span class="tab-index">01</span>
+          <i class="ph ph-brain tab-icon" aria-hidden="true"></i>
+          <span class="tab-title">Research Studio</span>
+        </button>
+        <button class="workstation-tab" data-tab="tab-ingest" title="02 · Ingestion Lab">
+          <span class="tab-index">02</span>
+          <i class="ph ph-flask tab-icon" aria-hidden="true"></i>
+          <span class="tab-title">Ingestion Lab</span>
+        </button>
+        <button class="workstation-tab" data-tab="tab-graph" title="03 · Knowledge Graph">
+          <span class="tab-index">03</span>
+          <i class="ph ph-graph tab-icon" aria-hidden="true"></i>
+          <span class="tab-title">Knowledge Graph</span>
+        </button>
+        <button class="workstation-tab" data-tab="tab-okf" title="04 · OKF Explorer">
+          <span class="tab-index">04</span>
+          <i class="ph ph-article tab-icon" aria-hidden="true"></i>
+          <span class="tab-title">OKF Explorer</span>
+        </button>
+        <button class="workstation-tab" data-tab="tab-storage" title="05 · Data Registry">
+          <span class="tab-index">05</span>
+          <i class="ph ph-hard-drives tab-icon" aria-hidden="true"></i>
+          <span class="tab-title">Data Registry</span>
+        </button>
+      </div>
+      <div class="nav-meta-note">
+        <kbd>⌘</kbd><kbd>1</kbd>–<kbd>5</kbd> to switch
+      </div>
+    </nav>
+  </div>
+
 
   <!-- ============================================================
        MAIN VIEWPORT
@@ -195,7 +200,7 @@
 
 
         <div class="chat-dialogue-feed" id="chatMessages">
-          <div class="speech-card assistant-speech">
+          <!-- <div class="speech-card assistant-speech">
             <div class="speech-header">
               <div class="speaker-title">
                 <i class="ph-bold ph-cube" aria-hidden="true"></i>
@@ -207,7 +212,7 @@
               <p class="lede">Papers, URLs and notes become typed <strong>Open Knowledge Format</strong> concept graphs — indexed twice, in MongoDB and in dense vectors.</p>
               <p>Build your graph in the <strong>Ingestion Lab</strong>, then ask a question below. Every answer returns with verbatim citations, linked concepts and a grounding score you can audit.</p>
             </div>
-          </div>
+          </div> -->
         </div>
 
         <!-- Composer -->
