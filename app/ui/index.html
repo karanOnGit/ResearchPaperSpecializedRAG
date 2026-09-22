@@ -24,7 +24,7 @@
   <!-- 3D WebGL Knowledge Graph -->
   <script src="https://unpkg.com/3d-force-graph@1.80.0/dist/3d-force-graph.min.js"></script>
 
-  <link rel="stylesheet" href="/static/style.css?v=2.0.0">
+  <link rel="stylesheet" href="/static/style.css?v=2.0.1">
 </head>
 <body>
 
@@ -121,6 +121,7 @@
     <button class="btn-header-action" id="openSettingsBtn" title="Engine diagnostics &amp; model config">
       <i class="ph ph-sliders-horizontal" aria-hidden="true"></i>
       <span>Engine</span>
+      <span class="live-indicator-dot live-amber" id="engineAlertDot" style="display:none;" title="Groq API key required"></span>
     </button>
   </div>
 </header>
@@ -193,7 +194,7 @@
               </div>
             </div>
             <div class="header-actions-deck">
-              <span class="card-tag-pill" id="activeModelBadge">Groq</span>
+              <span class="card-tag-pill clickable-pill" id="activeModelBadge" title="Engine model status · Click to configure" role="button" tabindex="0">Groq</span>
             </div>
           </div>
 
@@ -556,6 +557,15 @@
       <button class="btn-icon-ghost" id="closeSettingsBtn" aria-label="Close"><i class="ph ph-x" aria-hidden="true"></i></button>
     </div>
 
+    <!-- Banner shown if no API key is detected in .env or stored settings -->
+    <div class="modal-key-banner" id="modalKeyBanner" style="display:none;">
+      <i class="ph-duotone ph-warning-circle" aria-hidden="true"></i>
+      <div>
+        <strong>Groq API Key Required</strong>
+        <span>No key detected in <span class="mono-inline">.env</span>. Enter your personal Groq API key below to enable grounded research dialogue and OKF knowledge extraction.</span>
+      </div>
+    </div>
+
     <form id="settingsForm" class="modal-body-form">
       <div class="enterprise-input-group">
         <label for="groqApiKeyInput">Groq API key</label>
@@ -569,7 +579,8 @@
             <i class="ph ph-trash" aria-hidden="true"></i><span>Remove key</span>
           </button>
         </div>
-        <span class="form-hint">Get one at <span class="mono-inline">console.groq.com/keys</span>. Stored on this machine only, in <span class="mono-inline">data/.runtime_settings.json</span>.</span>
+        <div class="key-verify-feedback" id="keyVerifyFeedback" style="display:none;"></div>
+        <span class="form-hint">Get a free key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style="color:var(--text-primary); text-decoration:underline;">console.groq.com/keys</a>. Stored on this machine only, in <span class="mono-inline">data/.runtime_settings.json</span>.</span>
       </div>
 
       <div class="enterprise-input-group">
@@ -633,6 +644,6 @@
 <!-- Toasts -->
 <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
 
-<script src="/static/app.js?v=2.0.0"></script>
+<script src="/static/app.js?v=2.0.1"></script>
 </body>
 </html>

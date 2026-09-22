@@ -22,7 +22,13 @@ def _read_runtime_settings() -> Dict[str, Any]:
         if RUNTIME_SETTINGS_FILE.exists():
             data = json.loads(RUNTIME_SETTINGS_FILE.read_text(encoding="utf-8"))
             if isinstance(data, dict):
-                return {k: v for k, v in data.items() if k in PERSISTED_KEYS and isinstance(v, str)}
+                cleaned = {k: v for k, v in data.items() if k in PERSISTED_KEYS and isinstance(v, str)}
+                # Heal any legacy/non-existent model defaults
+                if cleaned.get("groq_model") in ("groq/compound", ""):
+                    cleaned["groq_model"] = "llama-3.3-70b-versatile"
+                if cleaned.get("extraction_model") in ("groq/compound", ""):
+                    cleaned["extraction_model"] = "llama-3.1-8b-instant"
+                return cleaned
     except (json.JSONDecodeError, OSError):
         pass
     return {}
@@ -34,9 +40,12 @@ _RUNTIME_SETTINGS = _read_runtime_settings()
 def _initial(name: str, env_var: str, default: str = "") -> str:
     """Saved UI value wins, then the environment, then the default."""
     saved = _RUNTIME_SETTINGS.get(name)
-    if saved:
+    if saved and saved != "groq/compound":
         return saved
-    return os.getenv(env_var, default)
+    val = os.getenv(env_var, default)
+    if val == "groq/compound":
+        return default
+    return val or default
 
 class AppConfig(BaseModel):
     # App Paths
@@ -50,8 +59,8 @@ class AppConfig(BaseModel):
     # LLM Settings — the API key is supplied from the UI (Engine Configuration),
     # falling back to GROQ_API_KEY in the environment for headless deployments.
     groq_api_key: str = _initial("groq_api_key", "GROQ_API_KEY", "")
-    groq_model: str = _initial("groq_model", "GROQ_MODEL", "groq/compound")
-    extraction_model: str = _initial("extraction_model", "EXTRACTION_MODEL", "groq/compound")
+    groq_model: str = _initial("groq_model", "GROQ_MODEL", "llama-3.3-70b-versatile")
+    extraction_model: str = _initial("extraction_model", "EXTRACTION_MODEL", "llama-3.1-8b-instant")
 
     # MongoDB Settings
     mongodb_uri: str = _initial("mongodb_uri", "MONGODB_URI", "")
