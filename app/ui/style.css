@@ -766,6 +766,11 @@ kbd {
   line-height: 1;
   color: var(--text-muted);
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   transition: color var(--dur-base) var(--ease-smooth), transform var(--dur-base) var(--ease-spring);
 }
 
@@ -793,21 +798,23 @@ kbd {
 }
 
 .workstation-tab .tab-title {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: none;
   opacity: 0;
   width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transform: translateX(-8px);
   pointer-events: none;
   transition: opacity 0.2s var(--ease-smooth),
-              transform 0.22s var(--ease-spring),
-              width 0.25s var(--ease-spring);
+              transform 0.22s var(--ease-spring);
 }
 .enterprise-tabs-nav:hover .workstation-tab .tab-title,
 .enterprise-tabs-nav.is-pinned .workstation-tab .tab-title {
+  display: block;
   opacity: 1;
   width: auto;
+  flex: 1;
   transform: translateX(0);
   pointer-events: auto;
 }
@@ -815,14 +822,17 @@ kbd {
 .workstation-tab::after {
   content: '';
   position: absolute;
-  left: 0;
-  top: 7px;
-  bottom: 7px;
+  left: 3px;
+  top: 11px;
+  bottom: 11px;
   width: 3px;
   height: auto;
   background: var(--text-primary);
-  border-radius: 0 3px 3px 0;
+  border-radius: 4px;
   transform: scaleY(0);
+  transform-origin: center;
+  transition: transform var(--dur-base) var(--ease-spring);
+}
   transform-origin: center;
   transition: transform var(--dur-base) var(--ease-spring);
 }
