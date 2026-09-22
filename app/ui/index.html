@@ -194,28 +194,10 @@
             </div>
             <div class="header-actions-deck">
               <span class="card-tag-pill" id="activeModelBadge">Groq</span>
-              <button type="button" class="btn-ghost-sm" id="toggleSideInspectorBtn" title="Toggle side inspector panel">
-                <i class="ph ph-sidebar-simple" aria-hidden="true"></i>
-                <span id="toggleSideInspectorLabel">Side Inspector</span>
-              </button>
             </div>
           </div>
 
-
         <div class="chat-dialogue-feed" id="chatMessages">
-          <!-- <div class="speech-card assistant-speech">
-            <div class="speech-header">
-              <div class="speaker-title">
-                <i class="ph-bold ph-cube" aria-hidden="true"></i>
-                <span>Research Knowledge Engine</span>
-              </div>
-              <span class="speech-time">System ready</span>
-            </div>
-            <div class="speech-body academic-narrative">
-              <p class="lede">Papers, URLs and notes become typed <strong>Open Knowledge Format</strong> concept graphs — indexed twice, in MongoDB and in dense vectors.</p>
-              <p>Build your graph in the <strong>Ingestion Lab</strong>, then ask a question below. Every answer returns with verbatim citations, linked concepts and a grounding score you can audit.</p>
-            </div>
-          </div> -->
         </div>
 
         <!-- Composer -->
@@ -242,57 +224,6 @@
             <span><kbd>↵</kbd> send · <kbd>⇧</kbd><kbd>↵</kbd> newline</span>
             <span class="hint-dot">·</span>
             <span>Answers are constrained to retrieved evidence</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Inspector -->
-      <div class="inspector-chamber enterprise-card" data-reveal>
-        <div class="card-header-bar">
-          <div class="card-header-title">
-            <i class="ph-duotone ph-magnifying-glass" aria-hidden="true"></i>
-            <div>
-              <span class="card-kicker">Audit</span>
-              <h2>Object Inspector</h2>
-            </div>
-          </div>
-        </div>
-
-        <div class="inspector-segment-bar" role="tablist">
-          <button class="segment-btn active" data-sub="sub-citations"><i class="ph ph-quotes" aria-hidden="true"></i><span>Citations</span></button>
-          <button class="segment-btn" data-sub="sub-concepts"><i class="ph ph-tag" aria-hidden="true"></i><span>Concepts</span></button>
-          <button class="segment-btn" data-sub="sub-provenance"><i class="ph ph-shield-check" aria-hidden="true"></i><span>Provenance</span></button>
-        </div>
-
-        <div class="inspector-scroll-area">
-          <div class="inspector-pane active" id="sub-citations">
-            <div id="citationsList">
-              <div class="zero-data-state">
-                <div class="zero-state-icon"><i class="ph-thin ph-book-open-text" aria-hidden="true"></i></div>
-                <div class="zero-state-heading">No citations yet</div>
-                <div class="zero-state-desc">Ask a question to inspect verbatim excerpts pulled from your source chunks.</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="inspector-pane" id="sub-concepts">
-            <div id="relatedConceptsList">
-              <div class="zero-data-state">
-                <div class="zero-state-icon"><i class="ph-thin ph-tag" aria-hidden="true"></i></div>
-                <div class="zero-state-heading">No concepts retrieved</div>
-                <div class="zero-state-desc">Typed OKF objects matched to your query will surface here.</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="inspector-pane" id="sub-provenance">
-            <div id="provenanceContainer">
-              <div class="zero-data-state">
-                <div class="zero-state-icon"><i class="ph-thin ph-shield-check" aria-hidden="true"></i></div>
-                <div class="zero-state-heading">Awaiting inquiry</div>
-                <div class="zero-state-desc">Grounding score, source coverage and provenance metrics appear after synthesis.</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

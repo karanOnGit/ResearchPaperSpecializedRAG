@@ -30,7 +30,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initOkfExplorer();
   initStorageInspector();
   initSettingsModal();
-  initSideInspectorToggle();
   initSidebarExpandCollapse();
   refreshTelemetry();
 });
@@ -819,20 +818,6 @@ function updateAssistantCard(card, data) {
 
   bodyEl.querySelectorAll('.inline-citation-badge').forEach(badge => {
     badge.addEventListener('click', () => highlightCitation(parseInt(badge.getAttribute('data-cite'), 10)));
-  });
-}
-
-function initSideInspectorToggle() {
-  const toggleBtn = document.getElementById('toggleSideInspectorBtn');
-  const layout = document.querySelector('.studio-layout');
-  const label = document.getElementById('toggleSideInspectorLabel');
-  if (!toggleBtn || !layout) return;
-
-  toggleBtn.addEventListener('click', () => {
-    const isCollapsed = layout.classList.toggle('side-inspector-collapsed');
-    if (label) {
-      label.textContent = isCollapsed ? 'Show Inspector' : 'Side Inspector';
-    }
   });
 }
 

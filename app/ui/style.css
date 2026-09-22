@@ -1156,30 +1156,14 @@ select.enterprise-text-input option { background: var(--bg-surface-solid); color
 
 /* ==================== 07 · RESEARCH STUDIO ==================== */
 .studio-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 390px;
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
   height: 100%;
   max-height: 100%;
   min-height: 0;
-  transition: grid-template-columns var(--dur-slow) var(--ease-spring);
-}
-
-
-.studio-layout.side-inspector-collapsed {
-  grid-template-columns: minmax(0, 1fr) 0px;
-  gap: 0;
-}
-.studio-layout.side-inspector-collapsed .inspector-chamber {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  overflow: hidden;
-  border: none;
-  padding: 0;
-  margin: 0;
-  width: 0;
-  min-width: 0;
+  max-width: 1120px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .header-actions-deck {
@@ -1211,8 +1195,13 @@ select.enterprise-text-input option { background: var(--bg-surface-solid); color
   border-color: var(--border-medium);
 }
 
-.chat-chamber,
-.inspector-chamber { display: flex; flex-direction: column; min-height: 0; }
+.chat-chamber {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+}
 
 .chat-dialogue-feed {
   flex: 1;
