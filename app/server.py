@@ -40,7 +40,10 @@ async def serve_ui():
     index_path = UI_DIR / "index.html"
     if index_path.exists():
         with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+            return HTMLResponse(
+                content=f.read(),
+                headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+            )
     return HTMLResponse("<h1>Research Knowledge Engine</h1><p>UI files loading...</p>")
 
 @app.get("/api/health")
