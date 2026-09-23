@@ -1,3 +1,4 @@
+import re
 import os
 import json
 from pathlib import Path
@@ -126,20 +127,89 @@ class MongoManager:
 
     # ==================== Concepts ====================
 
+    @staticmethod
+    def _is_better_definition(new_def: str, existing_def: str) -> bool:
+        """Heuristic check whether incoming definition is higher quality than existing."""
+        if not existing_def or not existing_def.strip():
+            return True
+        if not new_def or not new_def.strip():
+            return False
+
+        # If existing is a table or starts with header, incoming is definitely better
+        if "|" in existing_def or "|---" in existing_def or existing_def.strip().startswith("#"):
+            return not ("|" in new_def or "|---" in new_def or new_def.strip().startswith("#"))
+
+        # If incoming is a table or header, reject it
+        if "|" in new_def or "|---" in new_def or new_def.strip().startswith("#"):
+            return False
+
+        # If existing is a generic placeholder ("A key ... identified in ...")
+        if existing_def.startswith("A key ") and "identified in" in existing_def:
+            return True
+
+        definitional_markers = [
+            "consists of", "is defined as", "refers to", "characterized by",
+            "composed of", "conceptualized as", "represents", "interconnected components",
+            "essential vertices", "triangular theory"
+        ]
+        new_has_marker = any(m in new_def.lower() for m in definitional_markers)
+        exist_has_marker = any(m in existing_def.lower() for m in definitional_markers)
+
+        if new_has_marker and not exist_has_marker:
+            return True
+
+        # Prefer reasonable paragraph definition (80-450 chars)
+        if 80 <= len(new_def) <= 500 and len(existing_def) < 80:
+            return True
+
+        return False
+
     def save_concepts(self, concepts: List[OKFConcept]):
-        """Save concepts, updating mention counts if existing."""
+        """Save concepts, updating mention counts, provenance, components, and relationships."""
         for c in concepts:
             c_dict = c.model_dump()
             c_dict["_id"] = c.id
             existing = self.db.concepts.find_one({"_id": c.id})
             if existing:
-                # Update mention count and merge aliases
                 aliases = list(set(existing.get("aliases", []) + c.aliases))
+                tags = list(set(existing.get("tags", []) + c.tags))
                 mention_count = existing.get("mention_count", 1) + 1
-                self.db.concepts.update_one(
-                    {"_id": c.id},
-                    {"$set": {"aliases": aliases, "mention_count": mention_count, "definition": c.definition}}
-                )
+                update_fields = {
+                    "aliases": aliases,
+                    "tags": tags,
+                    "mention_count": mention_count,
+                }
+
+                # Upgrade definition and provenance if better
+                existing_def = existing.get("definition", "")
+                if self._is_better_definition(c.definition, existing_def):
+                    update_fields["definition"] = c.definition
+                    update_fields["provenance"] = c.provenance.model_dump()
+                    if c.category != "Entity":
+                        update_fields["category"] = c.category
+
+                # Merge components
+                if hasattr(c, "components") and c.components:
+                    existing_comps = existing.get("components", {})
+                    existing_comps.update(c.components)
+                    update_fields["components"] = existing_comps
+
+                # Merge relationships
+                if c.relationships:
+                    existing_rels = existing.get("relationships", [])
+                    existing_sig = {
+                        (r.get("source"), r.get("relation_type"), r.get("target"))
+                        for r in existing_rels if isinstance(r, dict)
+                    }
+                    for r in c.relationships:
+                        r_data = r.model_dump() if hasattr(r, "model_dump") else r
+                        sig = (r_data.get("source"), r_data.get("relation_type"), r_data.get("target"))
+                        if sig not in existing_sig:
+                            existing_sig.add(sig)
+                            existing_rels.append(r_data)
+                    update_fields["relationships"] = existing_rels
+
+                self.db.concepts.update_one({"_id": c.id}, {"$set": update_fields})
             else:
                 self.db.concepts.insert_one(c_dict)
         self._persist_fallback_to_disk("concepts")
@@ -213,6 +283,13 @@ class MongoManager:
 
     def list_relationships(self, limit: int = 200) -> List[Dict[str, Any]]:
         return list(self.db.relationships.find().limit(limit))
+
+    def list_relationships_for_concept(self, concept_name: str, limit: int = 100) -> List[Dict[str, Any]]:
+        """Find all relationships where source or target matches concept_name."""
+        if not concept_name:
+            return []
+        regex = {"$regex": f"^{re.escape(concept_name)}$", "$options": "i"}
+        return list(self.db.relationships.find({"$or": [{"source": regex}, {"target": regex}]}).limit(limit))
 
     # ==================== Chat History ====================
 

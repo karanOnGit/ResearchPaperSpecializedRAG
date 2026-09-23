@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from app.config import config
 from app.engine import ResearchKnowledgeEngine
 from app.okf.serializer import OKFSerializer
-from app.okf.models import OKFConcept
+from app.okf.models import OKFConcept, OKFRelationship
 
 app = FastAPI(
     title="Research Knowledge Engine - RAG OKF LangChain Application",
@@ -178,6 +178,32 @@ async def get_concept_okf(concept_id: str):
     c_dict = dict(concepts[0])
     c_dict.pop("_id", None)
     c_obj = OKFConcept(**c_dict)
+
+    # Attach all outgoing relationships where this concept is source
+    graph_rels = engine.mongo_manager.list_relationships_for_concept(c_obj.name)
+    existing_sigs = {(r.source.lower(), r.relation_type, r.target.lower()) for r in c_obj.relationships}
+
+    for gr in graph_rels:
+        r_id = str(gr.get("_id") or gr.get("id"))
+        src = gr.get("source", "").strip()
+        tgt = gr.get("target", "").strip()
+        rtype = gr.get("relation_type", "RELATED_TO").strip()
+        if src.lower() == c_obj.name.lower() and tgt:
+            sig = (src.lower(), rtype, tgt.lower())
+            if sig not in existing_sigs:
+                existing_sigs.add(sig)
+                c_obj.relationships.append(
+                    OKFRelationship(
+                        id=r_id,
+                        source=src,
+                        target=tgt,
+                        relation_type=rtype,
+                        description=gr.get("description", ""),
+                        evidence_quote=gr.get("evidence_quote", ""),
+                        confidence=float(gr.get("confidence", 0.9)),
+                    )
+                )
+
     md_yaml = OKFSerializer.concept_to_markdown_yaml(c_obj)
     return JSONResponse({"concept_id": concept_id, "name": c_obj.name, "okf_markdown": md_yaml})
 

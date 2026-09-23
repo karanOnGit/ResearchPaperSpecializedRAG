@@ -1,3 +1,4 @@
+import re
 import yaml
 from typing import Dict, Any, List, Optional
 from app.okf.models import OKFConcept, OKFRelationship, OKFSource, OKFDocumentBundle, OKFProvenance
@@ -6,8 +7,43 @@ class OKFSerializer:
     """Serializes and deserializes OKF objects to/from Markdown + YAML."""
 
     @staticmethod
-    def concept_to_markdown_yaml(concept: OKFConcept) -> str:
+    def _to_concept_id(target_name: str) -> str:
+        """Convert a target name into a clean concept ID."""
+        if target_name.startswith("concept_"):
+            return target_name
+        slug = re.sub(r'[^a-zA-Z0-9]+', '_', target_name.lower()).strip('_')
+        return f"concept_{slug[:32]}"
+
+    @classmethod
+    def concept_to_markdown_yaml(cls, concept: OKFConcept) -> str:
         """Serialize an OKFConcept to a Markdown document with YAML frontmatter."""
+        prov_dict = {
+            "source_id": concept.provenance.source_id,
+            "source_title": concept.provenance.source_title,
+            "source_url": concept.provenance.source_url,
+            "chunk_id": concept.provenance.chunk_id,
+        }
+        if concept.provenance.page_number is not None:
+            prov_dict["page_number"] = concept.provenance.page_number
+        if concept.provenance.section:
+            prov_dict["section"] = concept.provenance.section
+        prov_dict["extracted_at"] = concept.provenance.extracted_at
+        prov_dict["extractor"] = concept.provenance.extractor
+        prov_dict["confidence"] = round(float(concept.provenance.confidence), 2)
+
+        # Build clean frontmatter relationships: type + target concept ID
+        frontmatter_rels = []
+        seen_pairs = set()
+        for r in concept.relationships:
+            tgt_id = cls._to_concept_id(r.target)
+            pair_key = (r.relation_type, tgt_id)
+            if pair_key not in seen_pairs:
+                seen_pairs.add(pair_key)
+                frontmatter_rels.append({
+                    "type": r.relation_type,
+                    "target": tgt_id,
+                })
+
         frontmatter_data = {
             "okf_version": "1.0",
             "type": "concept",
@@ -15,27 +51,9 @@ class OKFSerializer:
             "name": concept.name,
             "category": concept.category,
             "aliases": concept.aliases,
-            "provenance": {
-                "source_id": concept.provenance.source_id,
-                "source_title": concept.provenance.source_title,
-                "source_url": concept.provenance.source_url,
-                "chunk_id": concept.provenance.chunk_id,
-                "page_number": concept.provenance.page_number,
-                "section": concept.provenance.section,
-                "extracted_at": concept.provenance.extracted_at,
-                "extractor": concept.provenance.extractor,
-                "confidence": concept.provenance.confidence,
-            },
-            "relationships": [
-                {
-                    "target": r.target,
-                    "relation_type": r.relation_type,
-                    "description": r.description,
-                    "confidence": r.confidence,
-                }
-                for r in concept.relationships
-            ],
-            "tags": concept.tags,
+            "provenance": prov_dict,
+            "relationships": frontmatter_rels,
+            "tags": concept.tags if concept.tags else [concept.category],
             "mention_count": concept.mention_count,
         }
 
@@ -50,17 +68,34 @@ class OKFSerializer:
             "",
             "## Definition",
             concept.definition,
-            "",
-            "## Relationships",
         ]
 
+        # Key Components section (if present)
+        if hasattr(concept, "components") and concept.components:
+            body_lines.extend(["", "## Key Components"])
+            for comp_name, comp_desc in concept.components.items():
+                body_lines.append(f"- **{comp_name}**: {comp_desc}")
+
+        # Relationships section
+        body_lines.extend(["", "## Relationships"])
         if concept.relationships:
+            # Group hasType and multi-target relations
+            grouped_rels: Dict[str, List[str]] = {}
             for r in concept.relationships:
-                body_lines.append(f"- **{concept.name}** `[{r.relation_type}]` **{r.target}**")
-                if r.description:
-                    body_lines.append(f"  - *Description*: {r.description}")
-                if r.evidence_quote:
-                    body_lines.append(f"  - *Evidence*: > \"{r.evidence_quote}\"")
+                grouped_rels.setdefault(r.relation_type, []).append(r.target)
+
+            for rtype, targets in grouped_rels.items():
+                # Deduplicate targets maintaining order
+                unique_tgts = []
+                for t in targets:
+                    if t not in unique_tgts:
+                        unique_tgts.append(t)
+
+                if rtype in ["hasType", "subtypes", "TYPES"] or len(unique_tgts) > 4:
+                    body_lines.append(f"- {rtype} → {', '.join(unique_tgts)}")
+                else:
+                    for t in unique_tgts:
+                        body_lines.append(f"- {rtype} → {t}")
         else:
             body_lines.append("*No direct relationships recorded yet.*")
 

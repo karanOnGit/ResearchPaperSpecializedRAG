@@ -37,6 +37,7 @@ class OKFConcept(BaseModel):
     definition: str = Field(..., description="Clear, authoritative technical definition")
     aliases: List[str] = Field(default_factory=list, description="Alternative names or acronyms")
     provenance: OKFProvenance = Field(..., description="Provenance metadata")
+    components: Dict[str, str] = Field(default_factory=dict, description="Key components and their descriptions")
     relationships: List[OKFRelationship] = Field(default_factory=list)
     mention_count: int = Field(default=1)
     tags: List[str] = Field(default_factory=list)
