@@ -2,7 +2,7 @@ import os
 import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Body
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Body, Request
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,13 +35,17 @@ if UI_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(UI_DIR)), name="static")
 
 @app.get("/", response_class=HTMLResponse)
-async def serve_ui():
+async def serve_ui(request: Request):
     """Serve the modern interactive web application."""
     index_path = UI_DIR / "index.html"
     if index_path.exists():
         with open(index_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            # Resolve dynamic base URL for Open Graph / LinkedIn crawlers
+            base_url = str(request.base_url).rstrip('/')
+            content = content.replace("{{BASE_URL}}", base_url)
             return HTMLResponse(
-                content=f.read(),
+                content=content,
                 headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
             )
     return HTMLResponse("<h1>Research Knowledge Engine</h1><p>UI files loading...</p>")

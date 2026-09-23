@@ -4,7 +4,48 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light dark">
-  <title>Research Knowledge Engine — Object Retrieval RAG</title>
+  <title>Research Knowledge Engine — Object Retrieval RAG & OKF Knowledge Graph</title>
+
+  <!-- Primary Meta Tags -->
+  <meta name="title" content="Research Knowledge Engine — Object Retrieval RAG & OKF Knowledge Graph">
+  <meta name="description" content="Full-stack object retrieval RAG engine featuring multi-source ingestion, Groq LLM extraction, Open Knowledge Format (OKF), 2D & 3D Knowledge Graph, and hybrid retrieval synthesis.">
+  <meta name="author" content="Research Knowledge Engine">
+  <meta name="keywords" content="RAG, Research, Knowledge Graph, OKF, LangChain, Groq, 3D Graph, AI, Information Retrieval">
+
+  <!-- Open Graph / LinkedIn / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Research Knowledge Engine">
+  <meta property="og:url" content="{{BASE_URL}}/">
+  <meta property="og:title" content="Research Knowledge Engine — Object Retrieval RAG & OKF Knowledge Graph">
+  <meta property="og:description" content="Full-stack object retrieval RAG engine featuring multi-source ingestion, Groq LLM extraction, Open Knowledge Format (OKF), 2D & 3D Knowledge Graph, and hybrid retrieval synthesis.">
+  <meta property="og:image" content="{{BASE_URL}}/static/preview.png">
+  <meta property="og:image:secure_url" content="{{BASE_URL}}/static/preview.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Research Knowledge Engine — Object Retrieval RAG & OKF Knowledge Graph Preview">
+
+  <!-- LinkedIn Specific -->
+  <meta name="image" property="og:image" content="{{BASE_URL}}/static/preview.png">
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="{{BASE_URL}}/">
+  <meta name="twitter:title" content="Research Knowledge Engine — Object Retrieval RAG & OKF Knowledge Graph">
+  <meta name="twitter:description" content="Full-stack object retrieval RAG engine featuring multi-source ingestion, Groq LLM extraction, Open Knowledge Format (OKF), 2D & 3D Knowledge Graph, and hybrid retrieval synthesis.">
+  <meta name="twitter:image" content="{{BASE_URL}}/static/preview.png">
+  <meta name="twitter:image:alt" content="Research Knowledge Engine — Object Retrieval RAG & OKF Knowledge Graph Preview">
+
+  <script>
+    (function() {
+      if (typeof window !== 'undefined' && window.location) {
+        const origin = window.location.origin;
+        document.querySelectorAll('meta[content*="{{BASE_URL}}"]').forEach(el => {
+          el.setAttribute('content', el.getAttribute('content').replace(/\{\{BASE_URL\}\}/g, origin));
+        });
+      }
+    })();
+  </script>
 
   <!-- Typography: editorial serif display, tight grotesque UI, reading serif, technical mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
