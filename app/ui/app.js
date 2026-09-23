@@ -516,6 +516,324 @@ function appendLog(message, type = 'info') {
   logContainer.scrollTop = logContainer.scrollHeight;
 }
 
+/* ==================== Kokoro ONNX TTS Audio Manager ==================== */
+const KokoroTTS = {
+  activeAudio: null,
+  activeMsgId: null,
+  activeBar: null,
+  cache: new Map(), // key -> blobUrl
+  serverVoices: null,
+
+  async fetchVoices() {
+    if (this.serverVoices) return this.serverVoices;
+    try {
+      const res = await fetch('/api/tts/voices');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.voices) {
+          this.serverVoices = data.voices;
+          return this.serverVoices;
+        }
+      }
+    } catch (_) {}
+    return null;
+  },
+
+  formatTime(seconds) {
+    if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  },
+
+  stopAll() {
+    if (this.activeAudio) {
+      try {
+        this.activeAudio.pause();
+        this.activeAudio.currentTime = 0;
+      } catch (_) {}
+      this.activeAudio = null;
+    }
+    if (this.activeBar) {
+      this.resetBar(this.activeBar);
+      this.activeBar = null;
+    }
+    this.activeMsgId = null;
+    if (window.speechSynthesis) {
+      try { window.speechSynthesis.cancel(); } catch (_) {}
+    }
+  },
+
+  resetBar(bar) {
+    if (!bar) return;
+    bar.classList.remove('is-playing');
+    const playBtn = bar.querySelector('.btn-tts-play');
+    if (playBtn) {
+      playBtn.classList.remove('loading');
+      const speakerIcon = playBtn.querySelector('.tts-icon-speaker');
+      const pauseIcon = playBtn.querySelector('.tts-icon-pause');
+      const playIcon = playBtn.querySelector('.tts-icon-play');
+      const label = playBtn.querySelector('.tts-btn-label');
+      if (speakerIcon) speakerIcon.style.display = 'inline-block';
+      if (pauseIcon) pauseIcon.style.display = 'none';
+      if (playIcon) playIcon.style.display = 'none';
+      if (label) label.textContent = 'Listen';
+    }
+    const stopBtn = bar.querySelector('.btn-tts-stop');
+    if (stopBtn) stopBtn.style.display = 'none';
+    const statusText = bar.querySelector('.tts-status-text');
+    if (statusText) statusText.textContent = 'Kokoro Studio';
+    const progressFill = bar.querySelector('.tts-progress-fill');
+    if (progressFill) progressFill.style.width = '0%';
+    const timer = bar.querySelector('.tts-timer');
+    if (timer) timer.textContent = '0:00';
+  }
+};
+
+function createTTSPlayerBarHtml(msgId, answerText) {
+  if (!answerText || !answerText.trim()) return '';
+
+  return `
+    <div class="tts-player-bar" id="tts_bar_${msgId}" data-msg-id="${msgId}">
+      <div class="tts-player-left">
+        <button type="button" class="btn-tts-play" title="Read response aloud with Kokoro TTS" aria-label="Listen to answer">
+          <i class="ph-bold ph-speaker-high tts-icon-speaker" aria-hidden="true"></i>
+          <i class="ph-bold ph-pause tts-icon-pause" aria-hidden="true" style="display:none;"></i>
+          <i class="ph-bold ph-play tts-icon-play" aria-hidden="true" style="display:none;"></i>
+          <span class="tts-btn-label">Listen</span>
+        </button>
+        <div class="tts-waveform" aria-hidden="true">
+          <span class="bar bar-1"></span>
+          <span class="bar bar-2"></span>
+          <span class="bar bar-3"></span>
+          <span class="bar bar-4"></span>
+        </div>
+        <span class="tts-status-text">Kokoro Studio</span>
+      </div>
+
+      <div class="tts-player-center">
+        <div class="tts-progress-track" title="Click to seek">
+          <div class="tts-progress-fill" style="width: 0%;"></div>
+        </div>
+        <span class="tts-timer">0:00</span>
+      </div>
+
+      <div class="tts-player-right">
+        <div class="tts-control-pill" title="Kokoro neural voice">
+          <i class="ph ph-microphone" aria-hidden="true"></i>
+          <select class="tts-voice-select" aria-label="Select voice">
+            <option value="af_sarah" selected>Sarah (US Studio)</option>
+            <option value="af_bella">Bella (US Warm)</option>
+            <option value="af_nicole">Nicole (US Crisp)</option>
+            <option value="af_sky">Sky (US Bright)</option>
+            <option value="am_adam">Adam (US Deep)</option>
+            <option value="am_michael">Michael (US Clear)</option>
+            <option value="am_echo">Echo (US Resonant)</option>
+            <option value="bf_emma">Emma (UK Academic)</option>
+            <option value="bf_isabella">Isabella (UK Crisp)</option>
+            <option value="bm_george">George (UK Scholarly)</option>
+            <option value="bm_lewis">Lewis (UK Narrative)</option>
+          </select>
+        </div>
+
+        <button type="button" class="tts-speed-btn" title="Toggle speed (1.0× / 1.25× / 0.85×)">1.0×</button>
+
+        <button type="button" class="btn-tts-stop" title="Stop playback" style="display:none;" aria-label="Stop audio">
+          <i class="ph-bold ph-stop" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function bindTTSPlayerEvents(card, msgId, rawText) {
+  const bar = card.querySelector(`#tts_bar_${msgId}`);
+  if (!bar) return;
+
+  const playBtn = bar.querySelector('.btn-tts-play');
+  const stopBtn = bar.querySelector('.btn-tts-stop');
+  const voiceSelect = bar.querySelector('.tts-voice-select');
+  const speedBtn = bar.querySelector('.tts-speed-btn');
+  const progressTrack = bar.querySelector('.tts-progress-track');
+  const progressFill = bar.querySelector('.tts-progress-fill');
+  const timer = bar.querySelector('.tts-timer');
+  const statusText = bar.querySelector('.tts-status-text');
+  const speakerIcon = playBtn.querySelector('.tts-icon-speaker');
+  const pauseIcon = playBtn.querySelector('.tts-icon-pause');
+  const playIcon = playBtn.querySelector('.tts-icon-play');
+  const btnLabel = playBtn.querySelector('.tts-btn-label');
+
+  let currentSpeed = 1.0;
+  const speeds = [1.0, 1.25, 0.85];
+
+  speedBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const currIdx = speeds.indexOf(currentSpeed);
+    currentSpeed = speeds[(currIdx + 1) % speeds.length];
+    speedBtn.textContent = `${currentSpeed}×`;
+    if (KokoroTTS.activeMsgId === msgId && KokoroTTS.activeAudio) {
+      KokoroTTS.activeAudio.playbackRate = currentSpeed;
+    }
+  });
+
+  voiceSelect.addEventListener('change', () => {
+    if (KokoroTTS.activeMsgId === msgId) {
+      KokoroTTS.stopAll();
+    }
+  });
+
+  stopBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    KokoroTTS.stopAll();
+  });
+
+  progressTrack.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (KokoroTTS.activeMsgId === msgId && KokoroTTS.activeAudio && KokoroTTS.activeAudio.duration) {
+      const rect = progressTrack.getBoundingClientRect();
+      const clickRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      KokoroTTS.activeAudio.currentTime = clickRatio * KokoroTTS.activeAudio.duration;
+    }
+  });
+
+  playBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+
+    // If currently playing this card's audio
+    if (KokoroTTS.activeMsgId === msgId && KokoroTTS.activeAudio) {
+      if (!KokoroTTS.activeAudio.paused) {
+        KokoroTTS.activeAudio.pause();
+        bar.classList.remove('is-playing');
+        speakerIcon.style.display = 'none';
+        pauseIcon.style.display = 'none';
+        playIcon.style.display = 'inline-block';
+        btnLabel.textContent = 'Resume';
+        statusText.textContent = 'Paused';
+        return;
+      } else {
+        KokoroTTS.activeAudio.play();
+        bar.classList.add('is-playing');
+        speakerIcon.style.display = 'none';
+        pauseIcon.style.display = 'inline-block';
+        playIcon.style.display = 'none';
+        btnLabel.textContent = 'Pause';
+        statusText.textContent = 'Playing';
+        return;
+      }
+    }
+
+    // Stop anything else currently playing
+    KokoroTTS.stopAll();
+
+    const voice = voiceSelect.value || 'af_sarah';
+    const speed = currentSpeed;
+    const cacheKey = `${msgId}_${voice}_${speed}`;
+
+    // Set UI to loading state
+    playBtn.classList.add('loading');
+    btnLabel.textContent = 'Synthesizing…';
+    statusText.textContent = 'Generating speech…';
+
+    try {
+      let blobUrl = KokoroTTS.cache.get(cacheKey);
+
+      if (!blobUrl) {
+        const res = await fetch('/api/tts/speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: rawText,
+            voice: voice,
+            speed: speed
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `Server returned ${res.status}`);
+        }
+
+        const blob = await res.blob();
+        blobUrl = URL.createObjectURL(blob);
+        KokoroTTS.cache.set(cacheKey, blobUrl);
+      }
+
+      playBtn.classList.remove('loading');
+      bar.classList.add('is-playing');
+      stopBtn.style.display = 'inline-flex';
+      speakerIcon.style.display = 'none';
+      pauseIcon.style.display = 'inline-block';
+      playIcon.style.display = 'none';
+      btnLabel.textContent = 'Pause';
+      statusText.textContent = 'Playing';
+
+      const audio = new Audio(blobUrl);
+      audio.playbackRate = speed;
+      KokoroTTS.activeAudio = audio;
+      KokoroTTS.activeMsgId = msgId;
+      KokoroTTS.activeBar = bar;
+
+      audio.addEventListener('timeupdate', () => {
+        if (!audio.duration) return;
+        const pct = (audio.currentTime / audio.duration) * 100;
+        progressFill.style.width = `${pct}%`;
+        timer.textContent = `${KokoroTTS.formatTime(audio.currentTime)} / ${KokoroTTS.formatTime(audio.duration)}`;
+      });
+
+      audio.addEventListener('ended', () => {
+        KokoroTTS.resetBar(bar);
+        KokoroTTS.activeAudio = null;
+        KokoroTTS.activeMsgId = null;
+        KokoroTTS.activeBar = null;
+      });
+
+      audio.addEventListener('error', (err) => {
+        console.error('Audio playback error', err);
+        toast('Playback error', 'Could not play audio track.', 'error');
+        KokoroTTS.resetBar(bar);
+      });
+
+      await audio.play();
+
+    } catch (err) {
+      console.warn('Kokoro TTS synthesis failed, attempting browser Web Speech fallback:', err);
+      playBtn.classList.remove('loading');
+
+      // Fallback to browser Web Speech API
+      if (window.speechSynthesis) {
+        try {
+          const cleanText = rawText.replace(/\[\d+\]/g, '').replace(/[*_#`]/g, '').trim();
+          const utterance = new SpeechSynthesisUtterance(cleanText);
+          utterance.rate = speed;
+          utterance.onstart = () => {
+            bar.classList.add('is-playing');
+            stopBtn.style.display = 'inline-flex';
+            speakerIcon.style.display = 'none';
+            pauseIcon.style.display = 'inline-block';
+            playIcon.style.display = 'none';
+            btnLabel.textContent = 'Pause';
+            statusText.textContent = 'Browser Speech';
+          };
+          utterance.onend = () => {
+            KokoroTTS.resetBar(bar);
+          };
+          utterance.onerror = () => {
+            KokoroTTS.resetBar(bar);
+          };
+          window.speechSynthesis.speak(utterance);
+          KokoroTTS.activeMsgId = msgId;
+          KokoroTTS.activeBar = bar;
+          toast('Web Speech Fallback', 'Using native browser speech engine.', 'info');
+          return;
+        } catch (_) {}
+      }
+
+      toast('Speech Synthesis Failed', err.message || 'Could not synthesize speech.', 'error');
+      KokoroTTS.resetBar(bar);
+    }
+  });
+}
+
 /* ==================== Research dialogue ==================== */
 function initResearchChat() {
   const form = document.getElementById('researchForm');
@@ -546,11 +864,35 @@ function initResearchChat() {
     });
   });
 
-  // Render or clear the API Key Required notice card in research dialogue
   window.checkAndRenderKeyNotice = function(apiKeySet) {
     const existing = document.getElementById('apiKeyCalloutCard');
     if (apiKeySet) {
       if (existing) existing.remove();
+      const existingWelcome = document.getElementById('welcomeSpeechCard');
+      if (!existingWelcome && messagesContainer && messagesContainer.children.length === 0) {
+        const welcomeText = "Welcome to the Research Knowledge Engine. Ingest papers, PDFs, or web articles to extract Open Knowledge Format concepts and synthesize grounded, evidence-backed answers with neural voice narration.";
+        const card = document.createElement('div');
+        card.className = 'speech-card assistant-speech';
+        card.id = 'welcomeSpeechCard';
+        const msgId = 'welcome_speech';
+        card.innerHTML = `
+          <div class="speech-header">
+            <div class="speaker-title">
+              <i class="ph-bold ph-cube" aria-hidden="true"></i>
+              <span>Research Knowledge Engine</span>
+            </div>
+            <span class="speech-time">Ready</span>
+          </div>
+          <div class="speech-body">
+            ${createTTSPlayerBarHtml(msgId, welcomeText)}
+            <div class="academic-narrative">
+              <p>${welcomeText}</p>
+            </div>
+          </div>
+        `;
+        messagesContainer.appendChild(card);
+        bindTTSPlayerEvents(card, msgId, welcomeText);
+      }
       return;
     }
     if (!existing && messagesContainer && messagesContainer.children.length === 0) {
@@ -857,7 +1199,13 @@ function updateAssistantCard(card, data) {
 
   const bodyEl = card.querySelector('.speech-body');
   if (!bodyEl) return;
-  bodyEl.innerHTML = `<div class="academic-narrative">${parsedHtml}</div>${sourcesHtml}${auditHtml}`;
+
+  const msgId = 'msg_' + Math.random().toString(36).substring(2, 9);
+  const ttsPlayerHtml = createTTSPlayerBarHtml(msgId, data.answer || '');
+
+  bodyEl.innerHTML = `${ttsPlayerHtml}<div class="academic-narrative">${parsedHtml}</div>${sourcesHtml}${auditHtml}`;
+
+  bindTTSPlayerEvents(card, msgId, data.answer || '');
 
   // Hook tab switching inside the in-chat hover popover
   bodyEl.querySelectorAll('.audit-popover-tab').forEach(tabBtn => {

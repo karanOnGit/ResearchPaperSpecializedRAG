@@ -832,7 +832,6 @@ kbd {
   transform: scaleY(0);
   transform-origin: center;
   transition: transform var(--dur-base) var(--ease-spring);
-}
   transform-origin: center;
   transition: transform var(--dur-base) var(--ease-spring);
 }
@@ -3103,7 +3102,242 @@ select.enterprise-text-input option { background: var(--bg-surface-solid); color
 }
 
 @media print {
-  .abstract-artwork-layer, .enterprise-tabs-nav, .studio-prompt-container, .toast-stack { display: none !important; }
+  .abstract-artwork-layer, .enterprise-tabs-nav, .studio-prompt-container, .toast-stack, .tts-player-bar { display: none !important; }
   body { background: #fff; color: #000; }
   .enterprise-card { border: 1px solid #ccc; box-shadow: none; background: #fff; }
 }
+
+/* ==================== KOKORO TTS NARRATION PLAYER ==================== */
+.tts-player-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.tts-player-bar:hover {
+  border-color: var(--border-medium);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.tts-player-bar.is-playing {
+  border-color: var(--color-indigo, #6366f1);
+  background: color-mix(in srgb, var(--color-indigo, #6366f1) 4%, var(--bg-surface));
+}
+
+.tts-player-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-tts-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--text-primary);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: 9999px;
+  padding: 5px 12px;
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+.btn-tts-play:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.btn-tts-play:active {
+  transform: translateY(0);
+}
+
+.btn-tts-play.loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.tts-waveform {
+  display: flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 16px;
+  padding: 0 4px;
+}
+
+.tts-waveform .bar {
+  width: 2.5px;
+  height: 4px;
+  background: var(--text-faint);
+  border-radius: 2px;
+  transition: height 0.2s ease, background-color 0.2s ease;
+}
+
+.tts-player-bar.is-playing .tts-waveform .bar {
+  background: var(--color-indigo, #6366f1);
+  animation: soundWave 0.8s ease-in-out infinite alternate;
+}
+
+.tts-player-bar.is-playing .tts-waveform .bar-1 { animation-delay: 0.0s; }
+.tts-player-bar.is-playing .tts-waveform .bar-2 { animation-delay: 0.2s; }
+.tts-player-bar.is-playing .tts-waveform .bar-3 { animation-delay: 0.4s; }
+.tts-player-bar.is-playing .tts-waveform .bar-4 { animation-delay: 0.1s; }
+
+@keyframes soundWave {
+  0% { height: 4px; }
+  50% { height: 16px; }
+  100% { height: 6px; }
+}
+
+.tts-status-text {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.tts-player-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 80px;
+  max-width: 320px;
+}
+
+.tts-progress-track {
+  flex: 1;
+  height: 4px;
+  background: var(--border-subtle);
+  border-radius: 9999px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: height 0.15s ease;
+}
+
+.tts-progress-track:hover {
+  height: 6px;
+}
+
+.tts-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--color-indigo, #6366f1);
+  border-radius: 9999px;
+  transition: width 0.1s linear;
+}
+
+.tts-timer {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 30px;
+}
+
+.tts-player-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tts-control-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.tts-control-pill i {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.tts-voice-select {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  padding: 2px 2px;
+}
+
+.tts-voice-select option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.tts-speed-btn {
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 3px 7px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.tts-speed-btn:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-medium);
+}
+
+.btn-tts-stop {
+  background: var(--bg-surface-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.btn-tts-stop:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: color-mix(in srgb, #ef4444 8%, var(--bg-surface));
+}
+
+@media (max-width: 768px) {
+  .tts-player-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .tts-player-center {
+    order: 3;
+    max-width: 100%;
+    width: 100%;
+  }
+}
+

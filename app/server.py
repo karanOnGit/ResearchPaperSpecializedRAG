@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Body, Request
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ from app.config import config
 from app.engine import ResearchKnowledgeEngine
 from app.okf.serializer import OKFSerializer
 from app.okf.models import OKFConcept, OKFRelationship
+from app.tts import tts_engine
 
 app = FastAPI(
     title="Research Knowledge Engine - RAG OKF LangChain Application",
@@ -126,6 +127,51 @@ async def research_query(req: QueryRequest):
         return JSONResponse(answer.model_dump())
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Research query error: {str(e)}")
+
+# ==================== Text-To-Speech (Kokoro ONNX) Endpoints ====================
+
+class TTSRequest(BaseModel):
+    text: str
+    voice: Optional[str] = "af_sarah"
+    speed: Optional[float] = 1.0
+
+@app.get("/api/tts/voices")
+async def get_tts_voices():
+    """List available Kokoro voices with names, accents, and styles."""
+    return JSONResponse({
+        "available": tts_engine.is_available(),
+        "voices": tts_engine.list_voices(),
+        "default_voice": "af_sarah"
+    })
+
+@app.post("/api/tts/speak")
+async def tts_speak(req: TTSRequest):
+    """Synthesize high-fidelity WAV speech using Kokoro ONNX and soundfile."""
+    if not req.text or not req.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty.")
+
+    if not tts_engine.is_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Kokoro TTS model assets not found on server."
+        )
+
+    try:
+        wav_bytes = tts_engine.synthesize_wav(
+            text=req.text,
+            voice=req.voice or "af_sarah",
+            speed=req.speed or 1.0,
+        )
+        return Response(
+            content=wav_bytes,
+            media_type="audio/wav",
+            headers={
+                "Content-Disposition": "inline; filename=speech.wav",
+                "Cache-Control": "public, max-age=86400",
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {str(e)}")
 
 # ==================== OKF & Graph Endpoints ====================
 
